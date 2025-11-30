@@ -1,6 +1,6 @@
 package iuh.chillteam.specification;
 
-import iuh.chillteam.dto.request.ProductFilterRequest;
+import iuh.chillteam.dto.product.ProductFilterRequest;
 import iuh.chillteam.entity.Product;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;

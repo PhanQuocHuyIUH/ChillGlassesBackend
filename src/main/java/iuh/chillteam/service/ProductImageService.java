@@ -1,6 +1,6 @@
 package iuh.chillteam.service;
 
-import iuh.chillteam.dto.response.ProductImageDTO;
+import iuh.chillteam.dto.image.ProductImageDTO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;

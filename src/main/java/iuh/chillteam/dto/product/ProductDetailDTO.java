@@ -1,5 +1,6 @@
-package iuh.chillteam.dto.response;
+package iuh.chillteam.dto.product;
 
+import iuh.chillteam.dto.image.ProductImageDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,19 +10,21 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Response DTO for Product List (simplified)
+ * Response DTO for Product Detail (full information)
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductListDTO {
+public class ProductDetailDTO {
 
     private Long id;
 
     private String name;
 
     private String slug;
+
+    private String description;
 
     private Double price;
 
@@ -45,7 +48,9 @@ public class ProductListDTO {
 
     private Boolean isActive;
 
-    private String primaryImageUrl; // First primary image
+    private List<ProductImageDTO> images;
 
     private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
 }
