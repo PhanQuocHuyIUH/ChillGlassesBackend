@@ -1,6 +1,6 @@
 package iuh.chillteam.service.impl;
 
-import iuh.chillteam.dto.response.ProductImageDTO;
+import iuh.chillteam.dto.image.ProductImageDTO;
 import iuh.chillteam.entity.Product;
 import iuh.chillteam.entity.ProductImage;
 import iuh.chillteam.exception.BadRequestException;

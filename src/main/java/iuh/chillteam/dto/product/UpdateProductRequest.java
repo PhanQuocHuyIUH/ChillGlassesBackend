@@ -1,4 +1,4 @@
-package iuh.chillteam.dto.request;
+package iuh.chillteam.dto.product;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;

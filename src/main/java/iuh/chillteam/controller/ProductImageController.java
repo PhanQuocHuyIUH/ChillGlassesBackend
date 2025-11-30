@@ -1,7 +1,7 @@
 package iuh.chillteam.controller;
 
-import iuh.chillteam.dto.response.ApiResponse;
-import iuh.chillteam.dto.response.ProductImageDTO;
+import iuh.chillteam.dto.common.ApiResponse;
+import iuh.chillteam.dto.image.ProductImageDTO;
 import iuh.chillteam.service.ProductImageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
