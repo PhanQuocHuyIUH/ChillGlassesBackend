@@ -37,7 +37,10 @@ CREATE TABLE category (
     display_order INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_slug (slug)
+    deleted_at DATETIME DEFAULT NULL,
+    INDEX idx_slug (slug),
+    INDEX idx_is_active (is_active),
+    INDEX idx_deleted (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
@@ -48,22 +51,23 @@ CREATE TABLE product (
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) NOT NULL UNIQUE, -- URL-friendly name
     description TEXT,
-    price DECIMAL NOT NULL, -- Giá sản phẩm
-    original_price DECIMAL, -- Giá gốc (trước khi giảm)
+    price DOUBLE NOT NULL, -- Giá sản phẩm
+    original_price DOUBLE, -- Giá gốc (trước khi giảm)
     brand VARCHAR(100) NOT NULL, -- Ray-Ban, Oakley, Gucci, etc.
     category_id BIGINT NOT NULL,
     stock_quantity INT NOT NULL DEFAULT 0,
-    rating DECIMAL(3, 2) DEFAULT 0.00, -- 0.00 - 5.00
+    rating DOUBLE DEFAULT 0.0, -- 0.0 - 5.0
     review_count INT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME DEFAULT NULL,
     FOREIGN KEY (category_id) REFERENCES category(id),
-    INDEX idx_name (name),
+    INDEX idx_slug (slug),
     INDEX idx_brand (brand),
     INDEX idx_category (category_id),
-    INDEX idx_price (price),
-    INDEX idx_rating (rating)
+    INDEX idx_active (is_active),
+    INDEX idx_deleted (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
@@ -77,8 +81,12 @@ CREATE TABLE product_image (
     is_primary BOOLEAN DEFAULT FALSE, -- Ảnh chính
     display_order INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME DEFAULT NULL,
     FOREIGN KEY (product_id) REFERENCES product(id) ON DELETE CASCADE,
-    INDEX idx_product (product_id)
+    INDEX idx_product (product_id),
+    INDEX idx_primary (is_primary),
+    INDEX idx_deleted (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================

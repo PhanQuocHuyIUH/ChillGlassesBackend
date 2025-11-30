@@ -1,9 +1,8 @@
 package iuh.chillteam.repository;
 
 import iuh.chillteam.entity.Product;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -11,32 +10,36 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * author: QUOC HUY
- * date: 07/11/2025
+ * Product Repository
  */
 @Repository
-public interface ProductRepository extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
     /**
-     * Find product by name
+     * Find product by slug
      */
-    Optional<Product> findByName(String name);
+    @Query("SELECT p FROM Product p WHERE p.slug = :slug AND p.deletedAt IS NULL")
+    Optional<Product> findBySlug(String slug);
 
     /**
-     * Find all active products (not soft deleted)
+     * Find products by category
      */
-    @Query("SELECT p FROM Product p WHERE p.deletedAt IS NULL")
-    List<Product> findAllActive();
+    @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId AND p.deletedAt IS NULL AND p.isActive = true")
+    List<Product> findByCategoryId(Long categoryId);
 
     /**
-     * Find all active products with pagination
+     * Find products by brand
      */
-    @Query("SELECT p FROM Product p WHERE p.deletedAt IS NULL")
-    Page<Product> findAllActive(Pageable pageable);
+    @Query("SELECT p FROM Product p WHERE LOWER(p.brand) = LOWER(:brand) AND p.deletedAt IS NULL AND p.isActive = true")
+    List<Product> findByBrand(String brand);
 
     /**
-     * Find products by price range
+     * Check if product exists by name (for duplicate check)
      */
-    @Query("SELECT p FROM Product p WHERE p.price BETWEEN :minPrice AND :maxPrice AND p.deletedAt IS NULL")
-    List<Product> findByPriceRange(Double minPrice, Double maxPrice);
+    boolean existsByNameAndDeletedAtIsNull(String name);
+
+    /**
+     * Check if product exists by slug (for duplicate check)
+     */
+    boolean existsBySlugAndDeletedAtIsNull(String slug);
 }

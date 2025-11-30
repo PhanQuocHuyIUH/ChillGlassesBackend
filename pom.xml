@@ -99,6 +99,34 @@
 <!--			<artifactId>spring-session-data-redis</artifactId>-->
 <!--		</dependency>-->
 
+		<!-- Cloudinary SDK -->
+		<dependency>
+			<groupId>com.cloudinary</groupId>
+			<artifactId>cloudinary-http44</artifactId>
+			<version>1.38.0</version>
+		</dependency>
+
+		<!-- Apache Commons FileUpload (nếu chưa có) -->
+		<dependency>
+			<groupId>commons-fileupload</groupId>
+			<artifactId>commons-fileupload</artifactId>
+			<version>1.5</version>
+		</dependency>
+
+		<!-- Đọc file .env -->
+		<dependency>
+			<groupId>me.paulschwarz</groupId>
+			<artifactId>spring-dotenv</artifactId>
+			<version>4.0.0</version>
+		</dependency>
+
+		<!-- Swagger/OpenAPI Documentation -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>2.7.0</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>

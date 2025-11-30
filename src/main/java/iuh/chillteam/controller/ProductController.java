@@ -1,9 +1,14 @@
 package iuh.chillteam.controller;
 
+import iuh.chillteam.dto.request.CreateProductRequest;
+import iuh.chillteam.dto.request.ProductFilterRequest;
+import iuh.chillteam.dto.request.UpdateProductRequest;
 import iuh.chillteam.dto.response.ApiResponse;
 import iuh.chillteam.dto.response.PageResponse;
-import iuh.chillteam.entity.Product;
+import iuh.chillteam.dto.response.ProductDetailDTO;
+import iuh.chillteam.dto.response.ProductListDTO;
 import iuh.chillteam.service.ProductService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -16,8 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * author: QUOC HUY
- * date: 07/11/2025
+ * Product Controller
  */
 @RestController
 @RequestMapping("/api/products")
@@ -27,97 +31,98 @@ public class ProductController {
 
     private final ProductService productService;
 
-    /**
-     * GET /api/products - Get all products with pagination
-     * Example: GET /api/products?page=0&size=10&sort=name,asc
-     */
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<Product>>> getAllProducts(
+    public ResponseEntity<ApiResponse<PageResponse<ProductListDTO>>> getAllProducts(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String brand,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(required = false) Boolean inStock,
+            @RequestParam(required = false) Boolean isActive,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir) {
 
-        log.info("GET /api/products - page: {}, size: {}, sortBy: {}, sortDir: {}", page, size, sortBy, sortDir);
+        log.info("GET /api/products - Filters: keyword={}, category={}, brand={}, price={}-{}", 
+                keyword, categoryId, brand, minPrice, maxPrice);
 
-        Sort sort = sortDir.equalsIgnoreCase("desc")
-                ? Sort.by(sortBy).descending()
-                : Sort.by(sortBy).ascending();
+        ProductFilterRequest filter = ProductFilterRequest.builder()
+                .keyword(keyword).categoryId(categoryId).brand(brand)
+                .minPrice(minPrice).maxPrice(maxPrice).inStock(inStock).isActive(isActive)
+                .sortBy(sortBy).sortDir(sortDir).build();
 
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
         Pageable pageable = PageRequest.of(page, size, sort);
-        PageResponse<Product> products = productService.getAllProducts(pageable);
+        PageResponse<ProductListDTO> products = productService.getAllProducts(filter, pageable);
 
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 
-    /**
-     * GET /api/products/all - Get all products without pagination
-     */
-    @GetMapping("/all")
-    public ResponseEntity<ApiResponse<List<Product>>> getAllProductsNoPaging() {
-        log.info("GET /api/products/all");
-        List<Product> products = productService.getAllProducts();
-        return ResponseEntity.ok(ApiResponse.success(products));
-    }
-
-    /**
-     * GET /api/products/{id} - Get product by ID
-     */
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Product>> getProductById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ProductDetailDTO>> getProductById(@PathVariable Long id) {
         log.info("GET /api/products/{}", id);
-        Product product = productService.getProductById(id);
+        ProductDetailDTO product = productService.getProductById(id);
         return ResponseEntity.ok(ApiResponse.success(product));
     }
 
-    /**
-     * POST /api/products - Create new product
-     * Body: {"name": "Product A", "price": 100000}
-     */
+    @GetMapping("/slug/{slug}")
+    public ResponseEntity<ApiResponse<ProductDetailDTO>> getProductBySlug(@PathVariable String slug) {
+        log.info("GET /api/products/slug/{}", slug);
+        ProductDetailDTO product = productService.getProductBySlug(slug);
+        return ResponseEntity.ok(ApiResponse.success(product));
+    }
+
+    @GetMapping("/category/{categoryId}")
+    public ResponseEntity<ApiResponse<List<ProductListDTO>>> getProductsByCategory(@PathVariable Long categoryId) {
+        log.info("GET /api/products/category/{}", categoryId);
+        List<ProductListDTO> products = productService.getProductsByCategory(categoryId);
+        return ResponseEntity.ok(ApiResponse.success(products));
+    }
+
+    @GetMapping("/brand/{brand}")
+    public ResponseEntity<ApiResponse<List<ProductListDTO>>> getProductsByBrand(@PathVariable String brand) {
+        log.info("GET /api/products/brand/{}", brand);
+        List<ProductListDTO> products = productService.getProductsByBrand(brand);
+        return ResponseEntity.ok(ApiResponse.success(products));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<ProductListDTO>>> searchProducts(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+
+        log.info("GET /api/products/search - keyword: {}", keyword);
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        PageResponse<ProductListDTO> products = productService.searchProducts(keyword, pageable);
+        return ResponseEntity.ok(ApiResponse.success(products));
+    }
+
     @PostMapping
-    public ResponseEntity<ApiResponse<Product>> createProduct(@RequestBody Product product) {
-        log.info("POST /api/products - name: {}, price: {}", product.getName(), product.getPrice());
-        Product createdProduct = productService.createProduct(product);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Product created successfully", createdProduct));
+    public ResponseEntity<ApiResponse<ProductDetailDTO>> createProduct(@Valid @RequestBody CreateProductRequest request) {
+        log.info("POST /api/products - name: {}", request.getName());
+        ProductDetailDTO product = productService.createProduct(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Product created successfully", product));
     }
 
-    /**
-     * PUT /api/products/{id} - Update product
-     * Body: {"name": "Updated Name", "price": 150000}
-     */
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Product>> updateProduct(
+    public ResponseEntity<ApiResponse<ProductDetailDTO>> updateProduct(
             @PathVariable Long id,
-            @RequestBody Product product) {
-
+            @Valid @RequestBody UpdateProductRequest request) {
         log.info("PUT /api/products/{}", id);
-        Product updatedProduct = productService.updateProduct(id, product);
-        return ResponseEntity.ok(ApiResponse.success("Product updated successfully", updatedProduct));
+        ProductDetailDTO product = productService.updateProduct(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Product updated successfully", product));
     }
 
-    /**
-     * DELETE /api/products/{id} - Delete product (soft delete)
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable Long id) {
         log.info("DELETE /api/products/{}", id);
         productService.deleteProduct(id);
         return ResponseEntity.ok(ApiResponse.success("Product deleted successfully"));
-    }
-
-    /**
-     * GET /api/products/price-range - Get products by price range
-     * Example: GET /api/products/price-range?min=50000&max=200000
-     */
-    @GetMapping("/price-range")
-    public ResponseEntity<ApiResponse<List<Product>>> getProductsByPriceRange(
-            @RequestParam Double min,
-            @RequestParam Double max) {
-
-        log.info("GET /api/products/price-range - min: {}, max: {}", min, max);
-        List<Product> products = productService.getProductsByPriceRange(min, max);
-        return ResponseEntity.ok(ApiResponse.success(products));
     }
 }
