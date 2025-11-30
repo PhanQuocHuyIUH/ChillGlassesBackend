@@ -1,4 +1,4 @@
-package iuh.chillteam.dto.response;
+package iuh.chillteam.dto.common;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;

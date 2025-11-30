@@ -1,12 +1,12 @@
 package iuh.chillteam.service.impl;
 
-import iuh.chillteam.dto.request.CreateProductRequest;
-import iuh.chillteam.dto.request.ProductFilterRequest;
-import iuh.chillteam.dto.request.UpdateProductRequest;
-import iuh.chillteam.dto.response.PageResponse;
-import iuh.chillteam.dto.response.ProductDetailDTO;
-import iuh.chillteam.dto.response.ProductImageDTO;
-import iuh.chillteam.dto.response.ProductListDTO;
+import iuh.chillteam.dto.common.PageResponse;
+import iuh.chillteam.dto.image.ProductImageDTO;
+import iuh.chillteam.dto.product.CreateProductRequest;
+import iuh.chillteam.dto.product.ProductFilterRequest;
+import iuh.chillteam.dto.product.UpdateProductRequest;
+import iuh.chillteam.dto.product.ProductDetailDTO;
+import iuh.chillteam.dto.product.ProductListDTO;
 import iuh.chillteam.entity.Category;
 import iuh.chillteam.entity.Product;
 import iuh.chillteam.entity.ProductImage;

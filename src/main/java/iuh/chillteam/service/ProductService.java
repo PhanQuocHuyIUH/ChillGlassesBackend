@@ -1,11 +1,11 @@
 package iuh.chillteam.service;
 
-import iuh.chillteam.dto.request.CreateProductRequest;
-import iuh.chillteam.dto.request.ProductFilterRequest;
-import iuh.chillteam.dto.request.UpdateProductRequest;
-import iuh.chillteam.dto.response.PageResponse;
-import iuh.chillteam.dto.response.ProductDetailDTO;
-import iuh.chillteam.dto.response.ProductListDTO;
+import iuh.chillteam.dto.common.PageResponse;
+import iuh.chillteam.dto.product.CreateProductRequest;
+import iuh.chillteam.dto.product.ProductFilterRequest;
+import iuh.chillteam.dto.product.UpdateProductRequest;
+import iuh.chillteam.dto.product.ProductDetailDTO;
+import iuh.chillteam.dto.product.ProductListDTO;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;

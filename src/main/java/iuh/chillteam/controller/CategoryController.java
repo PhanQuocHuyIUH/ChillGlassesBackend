@@ -2,7 +2,7 @@ package iuh.chillteam.controller;
 
 import iuh.chillteam.dto.category.CategoryDTO;
 import iuh.chillteam.dto.category.CategoryRequest;
-import iuh.chillteam.dto.response.ApiResponse;
+import iuh.chillteam.dto.common.ApiResponse;
 import iuh.chillteam.service.CategoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

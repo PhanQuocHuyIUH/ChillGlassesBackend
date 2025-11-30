@@ -1,4 +1,4 @@
-package iuh.chillteam.dto.request;
+package iuh.chillteam.dto.product;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
