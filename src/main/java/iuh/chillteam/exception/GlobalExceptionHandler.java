@@ -160,7 +160,9 @@ public class GlobalExceptionHandler {
             PaymentFailedException.class,
             PromotionNotFoundException.class,
             InvalidPromotionException.class,
-            UserNotFoundException.class
+            UserNotFoundException.class,
+            EmptyCartException.class,
+            CartItemNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleDomainExceptions(
             RuntimeException ex) {
