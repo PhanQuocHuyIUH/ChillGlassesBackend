@@ -1,5 +1,6 @@
 package iuh.chillteam.entity;
 
+import iuh.chillteam.entity.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -36,7 +37,7 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     @Builder.Default
-    private Role role = Role.CUSTOMER;
+    private UserRole role = UserRole.CUSTOMER;
 
     @Column(name = "is_active")
     @Builder.Default
@@ -45,14 +46,6 @@ public class User extends BaseEntity {
     @Column(name = "email_verified")
     @Builder.Default
     private Boolean emailVerified = false;
-
-    /**
-     * User Role enum
-     */
-    public enum Role {
-        CUSTOMER,
-        ADMIN
-    }
 
     @Override
     public String toString() {

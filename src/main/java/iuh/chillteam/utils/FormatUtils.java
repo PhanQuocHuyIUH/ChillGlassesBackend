@@ -20,4 +20,15 @@ public class FormatUtils {
     public static String formatPercent(double percent) {
         return String.format("%.0f%%", percent * 100);
     }
+
+    /**
+     * Format currency (Double) VND
+     * Example: 1500000.0 -> "1.500.000đ"
+     */
+    public static String formatCurrency(Double amount) {
+        if (amount == null) {
+            return "0đ";
+        }
+        return formatPrice(amount);
+    }
 }

@@ -2,6 +2,7 @@ package iuh.chillteam.service.impl;
 
 import iuh.chillteam.dto.auth.*;
 import iuh.chillteam.entity.User;
+import iuh.chillteam.entity.enums.UserRole;
 import iuh.chillteam.exception.BadRequestException;
 import iuh.chillteam.exception.ConflictException;
 import iuh.chillteam.exception.UnauthorizedException;
@@ -50,7 +51,7 @@ public class AuthServiceImpl implements AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
                 .address(request.getAddress())
-                .role(User.Role.CUSTOMER)
+                .role(UserRole.CUSTOMER)
                 .isActive(true)
                 .emailVerified(false)
                 .build();
