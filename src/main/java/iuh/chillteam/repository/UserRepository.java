@@ -1,6 +1,7 @@
 package iuh.chillteam.repository;
 
 import iuh.chillteam.entity.User;
+import iuh.chillteam.entity.enums.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -41,7 +42,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * Find users by role
      */
     @Query("SELECT u FROM User u WHERE u.role = :role AND u.deletedAt IS NULL ORDER BY u.createdAt DESC")
-    List<User> findByRole(@Param("role") User.Role role);
+    List<User> findByRole(@Param("role") UserRole role);
 
     /**
      * Find all active users
@@ -53,7 +54,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * Count users by role
      */
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = :role AND u.deletedAt IS NULL")
-    long countByRole(@Param("role") User.Role role);
+    long countByRole(@Param("role") UserRole role);
 
     /**
      * Find user by phone
