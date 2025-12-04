@@ -1,9 +1,8 @@
 package iuh.chillteam.controller;
 
-import iuh.chillteam.dto.auth.*;
 import iuh.chillteam.dto.otp.ResetPasswordRequest;
-import iuh.chillteam.service.impl.OtpService;
-import iuh.chillteam.service.impl.PasswordResetService;
+import iuh.chillteam.service.impl.OtpServiceImpl;
+import iuh.chillteam.service.impl.PasswordResetServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,8 +11,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ForgotPasswordController {
 
-    private final OtpService otpService;
-    private final PasswordResetService passwordResetService;
+    private final OtpServiceImpl otpService;
+    private final PasswordResetServiceImpl passwordResetService;
 
     @PostMapping("/send-otp")
     public void sendOtp(@RequestParam String email) {
