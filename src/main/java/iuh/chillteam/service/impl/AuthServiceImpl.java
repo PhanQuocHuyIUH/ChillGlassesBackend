@@ -34,6 +34,11 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
+    private String getRandomAvatarUrl() {
+        int random = (int) (Math.random() * 70) + 1;
+        return "https://i.pravatar.cc/150?img=" + random;
+    }
+
 
     @Override
     public AuthResponse register(RegisterRequest request) {
@@ -44,13 +49,19 @@ public class AuthServiceImpl implements AuthService {
             throw new ConflictException("Email already exists: " + request.getEmail());
         }
 
-        // Create new user
+        // Create new user with full information
         User user = User.builder()
                 .fullName(request.getFullName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
                 .address(request.getAddress())
+                .day(request.getDay())               // thêm ngày sinh
+                .month(request.getMonth())           // thêm tháng sinh
+                .year(request.getYear())             // thêm năm sinh
+                .gender(request.getGender())         // thêm giới tính
+                .recoveryEmail(request.getRecoveryEmail()) // thêm email khôi phục
+                .avatar(request.getAvatar() != null ? request.getAvatar() : getRandomAvatarUrl())
                 .role(UserRole.CUSTOMER)
                 .isActive(true)
                 .emailVerified(false)
@@ -59,7 +70,7 @@ public class AuthServiceImpl implements AuthService {
         user = userRepository.save(user);
         log.info("User registered successfully: {}", user.getEmail());
 
-        // Generate tokens
+        // Generate JWT tokens
         UserDetails userDetails = new UserDetailsServiceImpl.CustomUserDetails(user);
         String accessToken = jwtUtil.generateToken(userDetails);
         String refreshToken = jwtUtil.generateRefreshToken(userDetails);
@@ -72,6 +83,7 @@ public class AuthServiceImpl implements AuthService {
                 .user(UserDTO.fromEntity(user))
                 .build();
     }
+
 
     @Override
     public AuthResponse login(LoginRequest request) {
