@@ -47,6 +47,27 @@ public class User extends BaseEntity {
     @Builder.Default
     private Boolean emailVerified = false;
 
+    // ────────── Thông tin bổ sung ──────────
+
+    @Column(name = "day_of_birth")
+    private Integer day;
+
+    @Column(name = "month_of_birth")
+    private Integer month;
+
+    @Column(name = "year_of_birth")
+    private Integer year;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
+    @Column(name = "recovery_email")
+    private String recoveryEmail;
+
+    @Column(name = "avatar")
+    private String avatar; // lưu URL avatar
+
+
     @Override
     public String toString() {
         return "User{" +
@@ -55,6 +76,11 @@ public class User extends BaseEntity {
                 ", email='" + email + '\'' +
                 ", role=" + role +
                 ", isActive=" + isActive +
+                ", day=" + day +
+                ", month=" + month +
+                ", year=" + year +
+                ", gender=" + gender +
+                ", recoveryEmail=" + recoveryEmail +
                 '}';
     }
 }

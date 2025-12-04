@@ -109,6 +109,8 @@ public class SecurityConfig {
                         // Auth endpoints
                         .requestMatchers("/api/auth/**").permitAll()
 
+                        .requestMatchers("/api/password/**").permitAll()
+
                         // Category endpoints (GET only)
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
 

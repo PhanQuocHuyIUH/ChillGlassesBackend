@@ -33,4 +33,14 @@ public class RegisterRequest {
     private String phone;
 
     private String address;
+
+    private Integer day;
+    private Integer month;
+    private Integer year;
+
+    private String gender;
+
+    @Email(message = "Invalid recovery email format")
+    private String recoveryEmail;
+    private String avatar;
 }

@@ -14,6 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 /**
  * User Controller
@@ -92,4 +95,17 @@ public class UserController {
         userService.deactivateAccount();
         return ResponseEntity.ok(ApiResponse.success("Account deactivated successfully"));
     }
+
+    @PostMapping("/profile/avatar")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserDTO>> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        try {
+            UserDTO updatedUser = userService.updateAvatar(file);
+            return ResponseEntity.ok(ApiResponse.success("Avatar updated successfully", updatedUser));
+        } catch (RuntimeException | IOException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Failed to upload avatar: " + e.getMessage()));
+        }
+    }
+
+
 }
