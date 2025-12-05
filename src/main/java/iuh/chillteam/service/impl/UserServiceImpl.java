@@ -9,6 +9,7 @@ import iuh.chillteam.exception.ResourceNotFoundException;
 import iuh.chillteam.exception.UnauthorizedException;
 import iuh.chillteam.repository.UserRepository;
 import iuh.chillteam.security.UserDetailsServiceImpl;
+import iuh.chillteam.service.CloudinaryService;
 import iuh.chillteam.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 /**
  * User Service Implementation
@@ -29,6 +33,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CloudinaryService cloudinaryService;
 
     @Override
     @Transactional(readOnly = true)
@@ -112,6 +117,15 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
 
         log.info("Account deactivated successfully for user: {}", user.getEmail());
+    }
+
+    @Override
+    public UserDTO updateAvatar(MultipartFile file) throws IOException {
+        User user = getCurrentAuthenticatedUser();
+        String imageUrl = cloudinaryService.uploadUserAvatar(file); // mới: upload avatar
+        user.setAvatar(imageUrl);
+        userRepository.save(user);
+        return UserDTO.fromEntity(user);
     }
 
     /**

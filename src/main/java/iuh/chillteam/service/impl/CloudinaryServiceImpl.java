@@ -87,6 +87,19 @@ public class CloudinaryServiceImpl implements iuh.chillteam.service.CloudinarySe
                 .toList();
     }
 
+    @Override
+    public String uploadUserAvatar(MultipartFile file) throws IOException {
+        Map uploadResult = cloudinary.uploader().upload(file.getBytes(),
+                ObjectUtils.asMap(
+                        "folder", "chillglasses/avatars",
+                        "overwrite", true,
+                        "resource_type", "image"
+                )
+        );
+        return uploadResult.get("secure_url").toString();
+    }
+
+
     /**
      * Validate file ảnh
      */

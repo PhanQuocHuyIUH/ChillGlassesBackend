@@ -1,6 +1,7 @@
 package iuh.chillteam.security;
 
 import iuh.chillteam.entity.User;
+import iuh.chillteam.entity.enums.UserRole;
 import iuh.chillteam.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -112,7 +113,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         /**
          * Get user role
          */
-        public User.Role getRole() {
+        public UserRole getRole() {
             return user.getRole();
         }
     }

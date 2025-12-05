@@ -109,11 +109,19 @@ public class SecurityConfig {
                         // Auth endpoints
                         .requestMatchers("/api/auth/**").permitAll()
 
+                        .requestMatchers("/api/password/**").permitAll()
+
                         // Category endpoints (GET only)
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
 
                         // Product endpoints (GET only)
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+
+                        // Review endpoints (GET only - xem reviews của product)
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
+
+                        // Payment callback (public - từ payment gateway)
+                        .requestMatchers(HttpMethod.POST, "/api/payments/callback").permitAll()
 
                         // Swagger/OpenAPI documentation (nếu có)
                         .requestMatchers(
@@ -142,6 +150,17 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/products/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
 
+                        // Image upload (Admin only)
+                        .requestMatchers("/api/images/**").hasRole("ADMIN")
+
+                        // Payment admin endpoints
+                        .requestMatchers("/api/payments/admin/**").hasRole("ADMIN")
+
+                        // Review admin endpoints
+                        .requestMatchers("/api/reviews/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/reviews/*/approve").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/reviews/*/reject").hasRole("ADMIN")
+
                         // Admin dashboard & management
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
@@ -155,15 +174,17 @@ public class SecurityConfig {
                         // Orders
                         .requestMatchers("/api/orders/**").authenticated()
 
-                        // Profile
+                        // User Profile
                         .requestMatchers("/api/user/**").authenticated()
-                        .requestMatchers("/api/profile/**").authenticated()
 
-                        // Reviews
+                        // Reviews (create, update, delete, view my reviews)
                         .requestMatchers("/api/reviews/**").authenticated()
 
                         // Notifications
                         .requestMatchers("/api/notifications/**").authenticated()
+
+                        // Payments (process, generate URL)
+                        .requestMatchers("/api/payments/**").authenticated()
 
                         // Wishlist (nếu có)
                         .requestMatchers("/api/wishlist/**").authenticated()

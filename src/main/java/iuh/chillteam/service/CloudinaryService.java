@@ -29,4 +29,5 @@ public interface CloudinaryService {
             java.util.List<MultipartFile> files,
             String folder
     );
+    String uploadUserAvatar(MultipartFile file)  throws IOException;
 }

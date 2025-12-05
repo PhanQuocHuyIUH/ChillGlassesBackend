@@ -3,6 +3,9 @@ package iuh.chillteam.service;
 import iuh.chillteam.dto.auth.ChangePasswordRequest;
 import iuh.chillteam.dto.auth.ProfileUpdateRequest;
 import iuh.chillteam.dto.auth.UserDTO;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 /**
  * User Service Interface
@@ -33,4 +36,6 @@ public interface UserService {
      * Deactivate account (soft delete)
      */
     void deactivateAccount();
+
+    UserDTO updateAvatar(MultipartFile file)  throws IOException;
 }

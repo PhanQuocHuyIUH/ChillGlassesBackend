@@ -1,5 +1,6 @@
 package iuh.chillteam.entity;
 
+import iuh.chillteam.entity.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -36,7 +37,7 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     @Builder.Default
-    private Role role = Role.CUSTOMER;
+    private UserRole role = UserRole.CUSTOMER;
 
     @Column(name = "is_active")
     @Builder.Default
@@ -46,13 +47,26 @@ public class User extends BaseEntity {
     @Builder.Default
     private Boolean emailVerified = false;
 
-    /**
-     * User Role enum
-     */
-    public enum Role {
-        CUSTOMER,
-        ADMIN
-    }
+    // ────────── Thông tin bổ sung ──────────
+
+    @Column(name = "day_of_birth")
+    private Integer day;
+
+    @Column(name = "month_of_birth")
+    private Integer month;
+
+    @Column(name = "year_of_birth")
+    private Integer year;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
+    @Column(name = "recovery_email")
+    private String recoveryEmail;
+
+    @Column(name = "avatar")
+    private String avatar; // lưu URL avatar
+
 
     @Override
     public String toString() {
@@ -62,6 +76,11 @@ public class User extends BaseEntity {
                 ", email='" + email + '\'' +
                 ", role=" + role +
                 ", isActive=" + isActive +
+                ", day=" + day +
+                ", month=" + month +
+                ", year=" + year +
+                ", gender=" + gender +
+                ", recoveryEmail=" + recoveryEmail +
                 '}';
     }
 }
