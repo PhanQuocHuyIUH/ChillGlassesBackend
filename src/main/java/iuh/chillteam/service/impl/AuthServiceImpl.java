@@ -1,5 +1,6 @@
 package iuh.chillteam.service.impl;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import iuh.chillteam.dto.auth.*;
 import iuh.chillteam.entity.User;
 import iuh.chillteam.entity.enums.UserRole;
@@ -10,6 +11,7 @@ import iuh.chillteam.repository.UserRepository;
 import iuh.chillteam.security.JwtUtil;
 import iuh.chillteam.security.UserDetailsServiceImpl;
 import iuh.chillteam.service.AuthService;
+import iuh.chillteam.utils.GoogleUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -34,6 +36,8 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
+    private final GoogleUtils googleUtils;
+
     private String getRandomAvatarUrl() {
         int random = (int) (Math.random() * 70) + 1;
         return "https://i.pravatar.cc/150?img=" + random;
@@ -172,4 +176,55 @@ public class AuthServiceImpl implements AuthService {
         // TODO: Implement email verification logic
         log.info("Email verification");
     }
+    @Override
+    public AuthResponse loginWithGoogle(String idToken) {
+
+        // Verify Google ID Token
+        GoogleIdToken.Payload payload = googleUtils.verify(idToken);
+        if (payload == null) {
+            log.warn("Google ID Token is invalid or expired: {}", idToken);
+            throw new UnauthorizedException("Invalid or expired Google token");
+        }
+
+        // Lấy thông tin email và tên từ Google
+        String email = payload.getEmail();
+        String rawFullName = (String) payload.get("name");
+        final String fullName = (rawFullName != null && !rawFullName.isBlank()) ? rawFullName : email.split("@")[0];
+
+        // Kiểm tra user trong DB, nếu chưa có thì tạo mới
+        User user = userRepository.findByEmail(email)
+                .orElseGet(() -> {
+                    User newUser = User.builder()
+                            .email(email)
+                            .fullName(fullName)
+                            .password(passwordEncoder.encode("GOOGLE_LOGIN")) // mặc định
+                            .role(UserRole.CUSTOMER) // default role
+                            .isActive(true)
+                            .emailVerified(true)
+                            .avatar(getRandomAvatarUrl()) // avatar random
+                            .phone("0000000000")
+                            .address("Unknown")
+                            .build();
+                    return userRepository.save(newUser);
+                });
+
+        // Tạo UserDetails cho JWT
+        UserDetails userDetails = new UserDetailsServiceImpl.CustomUserDetails(user);
+
+        // Tạo access + refresh token
+        String accessToken = jwtUtil.generateToken(userDetails);
+        String refreshToken = jwtUtil.generateRefreshToken(userDetails);
+
+        // Trả về AuthResponse
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(86400L) // 24h
+                .user(UserDTO.fromEntity(user))
+                .build();
+    }
+
+
+
 }
