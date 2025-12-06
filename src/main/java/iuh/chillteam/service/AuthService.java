@@ -31,4 +31,6 @@ public interface AuthService {
      * Verify email (optional - for email verification)
      */
     void verifyEmail(String token);
+    AuthResponse loginWithGoogle(String idToken);
+
 }
