@@ -62,7 +62,6 @@ public class UserServiceImpl implements UserService {
         User user = getCurrentAuthenticatedUser();
         log.info("Updating profile for user: {}", user.getEmail());
 
-        // Update fields if provided
         if (request.getFullName() != null) {
             user.setFullName(request.getFullName());
         }
@@ -75,11 +74,26 @@ public class UserServiceImpl implements UserService {
             user.setAddress(request.getAddress());
         }
 
+        if (request.getGender() != null) {
+            user.setGender(request.getGender());
+        }
+
+        if (request.getDay() != null && request.getMonth() != null && request.getYear() != null) {
+            user.setDay(request.getDay());
+            user.setMonth(request.getMonth());
+            user.setYear(request.getYear());
+        }
+
+        if (request.getRecoveryEmail() != null) {
+            user.setRecoveryEmail(request.getRecoveryEmail());
+        }
+
         user = userRepository.save(user);
         log.info("Profile updated successfully for user: {}", user.getEmail());
 
         return UserDTO.fromEntity(user);
     }
+
 
     @Override
     public void changePassword(ChangePasswordRequest request) {

@@ -23,4 +23,12 @@ public class ProfileUpdateRequest {
     private String phone;
 
     private String address;
+
+    private String gender;
+
+    private Integer day;
+    private Integer month;
+    private Integer year;
+
+    private String recoveryEmail;
 }
