@@ -164,7 +164,6 @@ public class ProductServiceImpl implements ProductService {
         if (primaryImage != null) {
             primaryImageUrl = primaryImage.getImageUrl();
         }
-        System.out.println("Product ID: " + product.getId() + ", primaryImageUrl: " + primaryImageUrl);
         return ProductListDTO.builder()
                 .id(product.getId()).name(product.getName()).slug(product.getSlug())
                 .price(product.getPrice())
