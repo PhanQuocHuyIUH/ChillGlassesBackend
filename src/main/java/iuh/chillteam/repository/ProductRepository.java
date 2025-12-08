@@ -42,4 +42,16 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      * Check if product exists by slug (for duplicate check)
      */
     boolean existsBySlugAndDeletedAtIsNull(String slug);
+    
+    /**
+     * Find top N active products for AI recommendations
+     */
+    @Query("SELECT p FROM Product p WHERE p.deletedAt IS NULL AND p.isActive = true ORDER BY p.createdAt DESC")
+    List<Product> findTop10ByActiveTrue();
+    
+    /**
+     * Find top 3 latest active products
+     */
+    @Query("SELECT p FROM Product p WHERE p.deletedAt IS NULL AND p.isActive = true ORDER BY p.createdAt DESC LIMIT 3")
+    List<Product> findTop3ByActiveTrueOrderByCreatedAtDesc();
 }

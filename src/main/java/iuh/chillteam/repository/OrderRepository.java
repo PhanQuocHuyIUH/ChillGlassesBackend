@@ -82,4 +82,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      */
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.deletedAt IS NULL ORDER BY o.orderDate DESC")
     List<Order> findRecentOrdersByUserId(@Param("userId") Long userId, Pageable pageable);
+    
+    /**
+     * Find top N recent orders for AI context
+     */
+    @Query(value = "SELECT o FROM Order o WHERE o.user.id = :userId AND o.deletedAt IS NULL ORDER BY o.createdAt DESC")
+    List<Order> findTop3ByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
 }

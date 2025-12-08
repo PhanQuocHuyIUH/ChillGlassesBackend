@@ -77,4 +77,13 @@ public class AuthController {
         authService.logout(token);
         return ResponseEntity.ok(ApiResponse.success("Logout successful"));
     }
+    @PostMapping("/google")
+    public ResponseEntity<ApiResponse<AuthResponse>> loginWithGoogle(
+            @RequestBody GoogleLoginRequest request) {
+
+        AuthResponse response = authService.loginWithGoogle(request.getIdToken());
+
+        return ResponseEntity.ok(ApiResponse.success("Google login successful", response));
+    }
+
 }

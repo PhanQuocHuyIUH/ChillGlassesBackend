@@ -19,6 +19,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import iuh.chillteam.service.EmailService;
+
+
 /**
  * Order Service Implementation
  */
@@ -36,10 +39,20 @@ public class OrderServiceImpl implements OrderService {
     private final ProductImageRepository productImageRepository;
     private final UserRepository userRepository;
 
+    // fix promotion
+    private final PromotionRepository promotionRepository;
+    private final OrderPromotionRepository orderPromotionRepository;
+
     // Shipping fee constants (VND)
     private static final Double STANDARD_SHIPPING_FEE = 30000.0;
-    private static final Double EXPRESS_SHIPPING_FEE = 50000.0;
-    private static final Double FREE_SHIPPING_THRESHOLD = 500000.0;
+    private static final Double EXPRESS_SHIPPING_FEE = 60000.0;
+    // Nếu không dùng free-threshold nữa thì có thể bỏ hẳn dòng này
+    // private static final Double FREE_SHIPPING_THRESHOLD = 500000.0;
+
+    // Dich vu gui email _ xác nhận đơn
+    private final EmailService emailService; // ⭐ thêm dòng này
+
+
 
     @Override
     public OrderDTO createOrder(Long userId, CreateOrderRequest request) {
@@ -59,7 +72,7 @@ public class OrderServiceImpl implements OrderService {
             throw new EmptyCartException("Cart is empty");
         }
 
-        // Validate stock and calculate total
+        // Validate stock and calculate subtotal
         Double subtotal = 0.0;
         for (CartItem cartItem : cartItems) {
             Product product = cartItem.getProduct();
@@ -78,8 +91,82 @@ public class OrderServiceImpl implements OrderService {
         // Calculate shipping fee
         Double shippingFee = calculateShippingFee(request.getShippingMethod(), subtotal);
 
-        // Calculate total amount (subtotal + shipping)
-        Double totalAmount = subtotal + shippingFee;
+        // 🔹 Tính promotion (nếu có)
+        Double discountAmount = 0.0;
+        Promotion appliedPromotion = null;
+        String promotionDescription = null;
+
+        String rawPromotionCode = request.getPromotionCode();
+        if (rawPromotionCode != null && !rawPromotionCode.trim().isEmpty()) {
+            String promotionCode = rawPromotionCode.trim().toUpperCase();
+            log.info("User {} applies promotion code: {}", userId, promotionCode);
+
+            Promotion promotion = promotionRepository.findByCodeAndIsActiveTrue(promotionCode)
+                    .orElseThrow(() -> new InvalidPromotionException("Promotion code is invalid or inactive"));
+
+            // Validate thời gian
+            LocalDateTime now = LocalDateTime.now();
+            if (now.isBefore(promotion.getStartDate()) || now.isAfter(promotion.getEndDate())) {
+                throw new InvalidPromotionException("Promotion is expired or not yet started");
+            }
+
+            // Validate usage_limit
+            Integer usageLimit = promotion.getUsageLimit();
+            Integer usedCount = promotion.getUsedCount() == null ? 0 : promotion.getUsedCount();
+            if (usageLimit != null && usedCount >= usageLimit) {
+                throw new InvalidPromotionException("Promotion usage limit has been reached");
+            }
+
+            // Validate min_order_value (tính trên subtotal)
+            Double minOrderValue = promotion.getMinOrderValue();
+            if (minOrderValue != null && subtotal < minOrderValue) {
+                throw new InvalidPromotionException("Order amount does not meet minimum requirement for this promotion");
+            }
+
+            // 🔥 ĐIỂM KHÁC BIỆT Ở ĐÂY
+            // Nếu là mã FREESHIP2025 → giảm trên shippingFee, không giảm trên subtotal
+            if ("FREESHIP2025".equalsIgnoreCase(promotion.getCode())) {
+                Double maxDiscountAmount = promotion.getMaxDiscountAmount();
+                double maxByPromotion = (maxDiscountAmount != null) ? maxDiscountAmount : shippingFee;
+                discountAmount = Math.min(shippingFee, maxByPromotion);
+
+            } else {
+                // Các mã còn lại → giảm trên subtotal theo discount_type
+                switch (promotion.getDiscountType()) {
+                    case PERCENTAGE -> {
+                        double raw = subtotal * (promotion.getDiscountValue() / 100.0);
+                        discountAmount = raw;
+                    }
+                    case FIXED_AMOUNT -> discountAmount = promotion.getDiscountValue();
+                }
+
+                // Áp max_discount_amount nếu có
+                Double maxDiscountAmount = promotion.getMaxDiscountAmount();
+                if (maxDiscountAmount != null && discountAmount > maxDiscountAmount) {
+                    discountAmount = maxDiscountAmount;
+                }
+            }
+
+            // Không cho giảm vượt quá tổng (subtotal + shipping)
+            double maxPossibleDiscount = subtotal + shippingFee;
+            if (discountAmount > maxPossibleDiscount) {
+                discountAmount = maxPossibleDiscount;
+            }
+
+            appliedPromotion = promotion;
+
+            StringBuilder descBuilder = new StringBuilder();
+            descBuilder.append("Code: ").append(promotion.getCode());
+            if (promotion.getDescription() != null) {
+                descBuilder.append(" | ").append(promotion.getDescription());
+            }
+            descBuilder.append(" | Discount applied: ").append(FormatUtils.formatCurrency(discountAmount));
+            promotionDescription = descBuilder.toString();
+        }
+
+
+        // Calculate total amount (subtotal + shipping - discount)
+        Double totalAmount = subtotal + shippingFee - discountAmount;
 
         // Generate order code
         String orderCode = generateOrderCode();
@@ -100,13 +187,32 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         order = orderRepository.save(order);
-        log.info("Created order: {}", orderCode);
+        log.info("Created order: {} with totalAmount: {}", orderCode, totalAmount);
+
+        // Nếu có promotion → tạo OrderPromotion + tăng used_count
+        if (appliedPromotion != null) {
+            OrderPromotion orderPromotion = OrderPromotion.builder()
+                    .order(order)
+                    .promotion(appliedPromotion)
+                    .discountAmount(discountAmount)
+                    .description(promotionDescription)
+                    .build();
+
+            orderPromotionRepository.save(orderPromotion);
+
+            Integer currentUsed = appliedPromotion.getUsedCount() == null
+                    ? 0
+                    : appliedPromotion.getUsedCount();
+            appliedPromotion.setUsedCount(currentUsed + 1);
+            promotionRepository.save(appliedPromotion);
+
+            log.info("Applied promotion {} to order {} with discount {}", appliedPromotion.getCode(), orderCode, discountAmount);
+        }
 
         // Create order items and reduce stock
         for (CartItem cartItem : cartItems) {
             Product product = cartItem.getProduct();
 
-            // Create order item (snapshot product info)
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .product(product)
@@ -118,7 +224,6 @@ public class OrderServiceImpl implements OrderService {
 
             orderItemRepository.save(orderItem);
 
-            // Reduce stock
             product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
             productRepository.save(product);
         }
@@ -127,8 +232,20 @@ public class OrderServiceImpl implements OrderService {
         cartItemRepository.deleteAll(cartItems);
         log.info("Cleared cart for user: {}", userId);
 
-        return convertToDTO(order);
+        // Chuyển sang DTO để trả về FE và gửi email xác nhận
+        OrderDTO orderDTO = convertToDTO(order);
+
+        // Gửi email xác nhận đơn hàng (song ngữ, dùng DTO)
+        try {
+            emailService.sendOrderConfirmationEmail(orderDTO);
+        } catch (Exception e) {
+            log.error("Error while sending order confirmation email for order {}", order.getOrderCode(), e);
+        }
+
+        return orderDTO;
     }
+
+
 
     @Override
     @Transactional(readOnly = true)
@@ -262,21 +379,28 @@ public class OrderServiceImpl implements OrderService {
         order = orderRepository.save(order);
         log.info("Cancelled order: {}", orderId);
 
-        return convertToDTO(order);
+        OrderDTO dto = convertToDTO(order);
+
+        // Gửi email thông báo hủy đơn (song ngữ)
+        try {
+            emailService.sendOrderCancellationEmail(dto);
+        } catch (Exception e) {
+            log.error("Error while sending order cancellation email for order {}", order.getOrderCode(), e);
+        }
+
+        return dto;
     }
+
 
     @Override
     public Double calculateShippingFee(ShippingMethod shippingMethod, Double orderAmount) {
-        // Free shipping for orders above threshold
-        if (orderAmount >= FREE_SHIPPING_THRESHOLD) {
-            return 0.0;
-        }
-
+        // Không auto free ship nữa, cứ theo phương thức ship
         return switch (shippingMethod) {
             case STANDARD -> STANDARD_SHIPPING_FEE;
             case EXPRESS -> EXPRESS_SHIPPING_FEE;
         };
     }
+
 
     /**
      * Validate status transition
@@ -335,10 +459,25 @@ public class OrderServiceImpl implements OrderService {
      */
     private OrderDTO convertToDTO(Order order) {
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
-
         List<OrderItemDTO> itemDTOs = orderItems.stream()
                 .map(this::convertItemToDTO)
                 .collect(Collectors.toList());
+
+        // 🔹 Lấy thông tin promotion nếu có
+        List<OrderPromotion> orderPromotions = orderPromotionRepository.findByOrderId(order.getId());
+        OrderPromotion op = orderPromotions.isEmpty() ? null : orderPromotions.get(0);
+
+        String promotionCode = null;
+        Double promotionDiscountAmount = 0.0;
+        String formattedPromotionDiscount = null;
+        String promotionDescription = null;
+
+        if (op != null) {
+            promotionCode = op.getPromotion().getCode();
+            promotionDiscountAmount = op.getDiscountAmount();
+            formattedPromotionDiscount = FormatUtils.formatCurrency(promotionDiscountAmount);
+            promotionDescription = op.getDescription();
+        }
 
         return OrderDTO.builder()
                 .id(order.getId())
@@ -356,6 +495,10 @@ public class OrderServiceImpl implements OrderService {
                 .shippingMethod(order.getShippingMethod())
                 .shippingFee(order.getShippingFee())
                 .formattedShippingFee(FormatUtils.formatCurrency(order.getShippingFee()))
+                .promotionCode(promotionCode)
+                .promotionDiscountAmount(promotionDiscountAmount)
+                .formattedPromotionDiscountAmount(formattedPromotionDiscount)
+                .promotionDescription(promotionDescription)
                 .notes(order.getNotes())
                 .items(itemDTOs)
                 .totalItems(itemDTOs.size())
@@ -364,11 +507,25 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+
     /**
      * Convert Order to OrderSummaryDTO
      */
     private OrderSummaryDTO convertToSummaryDTO(Order order) {
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+
+        List<OrderPromotion> orderPromotions = orderPromotionRepository.findByOrderId(order.getId());
+        OrderPromotion op = orderPromotions.isEmpty() ? null : orderPromotions.get(0);
+
+        String promotionCode = null;
+        Double promotionDiscountAmount = 0.0;
+        String formattedPromotionDiscount = null;
+
+        if (op != null) {
+            promotionCode = op.getPromotion().getCode();
+            promotionDiscountAmount = op.getDiscountAmount();
+            formattedPromotionDiscount = FormatUtils.formatCurrency(promotionDiscountAmount);
+        }
 
         return OrderSummaryDTO.builder()
                 .id(order.getId())
@@ -381,8 +538,12 @@ public class OrderServiceImpl implements OrderService {
                 .paymentStatus(order.getPaymentStatus())
                 .totalItems(orderItems.size())
                 .createdAt(order.getCreatedAt())
+                .promotionCode(promotionCode)
+                .promotionDiscountAmount(promotionDiscountAmount)
+                .formattedPromotionDiscountAmount(formattedPromotionDiscount)
                 .build();
     }
+
 
     /**
      * Convert OrderItem to OrderItemDTO

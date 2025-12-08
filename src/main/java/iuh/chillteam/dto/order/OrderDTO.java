@@ -38,4 +38,10 @@ public class OrderDTO {
     private Integer totalItems;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    // thêm để fix promotion:
+    private String promotionCode;
+    private Double promotionDiscountAmount;
+    private String formattedPromotionDiscountAmount;
+    private String promotionDescription;
+
 }

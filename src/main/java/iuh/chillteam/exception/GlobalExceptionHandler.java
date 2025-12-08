@@ -24,6 +24,31 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     /**
+     * Handle AI Service errors (503)
+     */
+    @ExceptionHandler(AIServiceException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAIServiceException(
+            AIServiceException ex) {
+        
+        log.error("AI Service error [{}]: {}", ex.getErrorCode(), ex.getMessage(), ex);
+        
+        HttpStatus status = switch (ex.getErrorCode()) {
+            case "OPENAI_INVALID_KEY" -> HttpStatus.INTERNAL_SERVER_ERROR;
+            case "OPENAI_RATE_LIMIT" -> HttpStatus.TOO_MANY_REQUESTS;
+            case "OPENAI_QUOTA_EXCEEDED" -> HttpStatus.PAYMENT_REQUIRED;
+            case "OPENAI_TIMEOUT" -> HttpStatus.GATEWAY_TIMEOUT;
+            default -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
+        
+        ApiResponse<Void> response = ApiResponse.error(
+                status.value(),
+                ex.getMessage()
+        );
+        
+        return ResponseEntity.status(status).body(response);
+    }
+
+    /**
      * Handle validation errors (400)
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
