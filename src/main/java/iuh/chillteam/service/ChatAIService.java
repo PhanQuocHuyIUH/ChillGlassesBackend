@@ -2,27 +2,15 @@ package iuh.chillteam.service;
 
 import iuh.chillteam.dto.ai.ChatRequest;
 import iuh.chillteam.dto.ai.ChatResponse;
-import reactor.core.publisher.Flux;
 
 public interface ChatAIService {
     
     /**
-     * Send message to AI and get response
+     * Main chat endpoint - handles all chat interactions
+     * - Checks for FAQ/basic greetings first
+     * - Loads user context (orders) if authenticated
+     * - Calls OpenAI API for complex queries
+     * - Always returns 3 product suggestions when relevant
      */
     ChatResponse chat(ChatRequest request, Long userId);
-    
-    /**
-     * Stream chat response (for real-time streaming)
-     */
-    Flux<String> streamChat(ChatRequest request, Long userId);
-    
-    /**
-     * Get product recommendations based on user preferences
-     */
-    ChatResponse getProductRecommendations(String preferences, Long userId);
-    
-    /**
-     * Get style advice based on face shape and skin tone
-     */
-    ChatResponse getStyleAdvice(String faceShape, String skinTone, Long userId);
 }

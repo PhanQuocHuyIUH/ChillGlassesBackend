@@ -1,11 +1,14 @@
 package iuh.chillteam.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import iuh.chillteam.config.FAQConfig;
 import iuh.chillteam.dto.ai.ChatRequest;
 import iuh.chillteam.dto.ai.ChatResponse;
+import iuh.chillteam.entity.Order;
 import iuh.chillteam.entity.Product;
 import iuh.chillteam.entity.ProductImage;
 import iuh.chillteam.entity.User;
+import iuh.chillteam.repository.OrderRepository;
 import iuh.chillteam.repository.ProductImageRepository;
 import iuh.chillteam.repository.ProductRepository;
 import iuh.chillteam.repository.UserRepository;
@@ -14,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import iuh.chillteam.exception.AIServiceException;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -28,6 +32,7 @@ import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -40,36 +45,43 @@ public class ChatAIServiceImpl implements ChatAIService {
     private final ProductRepository productRepository;
     private final ProductImageRepository productImageRepository;
     private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
     private final ObjectMapper objectMapper;
+    private final FAQConfig faqConfig;
     
     private static final String SYSTEM_PROMPT = """
-        Bạn là chuyên gia tư vấn kính mắt thời trang của ChillGlasses với kiến thức sâu về:
-        - Phong cách kính phù hợp với từng dáng mặt (oval, tròn, vuông, trái xoan, dài)
-        - Màu sắc và chất liệu gọng kính phù hợp với tông da
-        - Xu hướng thời trang kính mắt hiện đại
-        - Tư vấn dựa trên hoạt động và phong cách sống
+        Bạn là chuyên gia tư vấn kính mắt thời trang của ChillGlasses.
         
-        CÁC QUY TẮC QUAN TRỌNG:
-        1. ✅ HÃY luôn giới thiệu 2-3 sản phẩm CỤ THỂ từ danh sách được cung cấp
-        2. ✅ PHẢI chèn [PRODUCT_ID:123] vào trong câu giới thiệu sản phẩm
-        3. ✅ Giải thích TẠI SAO sản phẩm đó phù hợp với yêu cầu của khách hàng
-        4. ❌ TUYỆT ĐỐI KHÔNG tự tạo tên sản phẩm hoặc ID không có trong danh sách
-        5. ❌ KHÔNG nói chung chung như "có nhiều loại kính" mà phải giới thiệu SẢN PHẨM CỤ THỂ
+        🎯 NHIỆM VỤ CHÍNH:
+        - Tư vấn kính phù hợp với khuôn mặt, tông da, phong cách sống
+        - LUÔN LUÔN giới thiệu ĐÚNG 3 sản phẩm CỤ THỂ từ danh sách
+        - Giải thích rõ ràng TẠI SAO mỗi sản phẩm phù hợp
         
-        CẤU TRÚC TRẢ LỜI MẪU:
-        "Dựa trên [đặc điểm khách hàng], tôi gợi ý:
+        ✅ QUY TẮC BẮT BUỘC:
+        1. PHẢI giới thiệu ĐÚNG 3 sản phẩm (không nhiều hơn, không ít hơn)
+        2. PHẢI chèn [PRODUCT_ID:123] cho MỖI sản phẩm
+        3. CHỈ dùng ID có trong danh sách được cung cấp
+        4. KHÔNG tự tạo sản phẩm hoặc ID không tồn tại
         
-        1. [PRODUCT_ID:5] - [Tên sản phẩm] với gọng [đặc điểm] rất phù hợp vì [lý do cụ thể]
-        2. [PRODUCT_ID:8] - [Tên sản phẩm] có thiết kế [đặc điểm] giúp [lợi ích cụ thể]
-        3. [PRODUCT_ID:12] - [Tên sản phẩm] là lựa chọn tuyệt vời nếu bạn [tình huống]
+        📝 CẤU TRÚC TRẢ LỜI CHUẨN:
+        "[Lời mở đầu ngắn gọn về đặc điểm khách hàng]
         
-        [Lời khuyên thêm về cách phối hợp hoặc chăm sóc]"
+        Tôi gợi ý 3 sản phẩm sau:
         
-        LƯU Ý:
-        - Chỉ tư vấn về kính mắt của cửa hàng
-        - Nếu khách hỏi ngoài lề, lịch sự từ chối và hướng về sản phẩm kính
-        - Frontend sẽ tự động chuyển [PRODUCT_ID:123] thành link có thể click
-        - Luôn nhiệt tình, chuyên nghiệp và cụ thể
+        1️⃣ [PRODUCT_ID:X] - [Tên] - [Lý do cụ thể phù hợp]
+        2️⃣ [PRODUCT_ID:Y] - [Tên] - [Lý do cụ thể phù hợp]  
+        3️⃣ [PRODUCT_ID:Z] - [Tên] - [Lý do cụ thể phù hợp]
+        
+        [Lời khuyên thêm nếu cần]"
+        
+        ⚠️ XỬ LÝ CÂU HỎI NGOÀI LỀ:
+        - Nếu hỏi về chính sách/liên hệ: "Bạn có thể xem thông tin chi tiết tại trang Giới thiệu hoặc Liên hệ của chúng tôi."
+        - Nếu hỏi hoàn toàn không liên quan: "Tôi chỉ có thể tư vấn về kính mắt. Bạn có câu hỏi gì về sản phẩm kính không?"
+        
+        💡 LƯU Ý:
+        - Frontend sẽ chuyển [PRODUCT_ID:123] thành link click được
+        - Luôn thân thiện, chuyên nghiệp, cụ thể
+        - Tập trung vào lợi ích thực tế cho khách hàng
         """;
     
     @Override
@@ -79,13 +91,20 @@ public class ChatAIServiceImpl implements ChatAIService {
         backoff = @Backoff(delay = 1000, multiplier = 2)
     )
     public ChatResponse chat(ChatRequest request, Long userId) {
-        log.info("Processing chat request from user: {} (attempt)", userId);
+        log.info("Processing chat request from user: {}", userId);
+        
+        // Step 1: Check for FAQ/basic greetings - no API call needed
+        ChatResponse faqResponse = handleFAQ(request.getMessage());
+        if (faqResponse != null) {
+            log.info("Handled by FAQ - no API call");
+            return faqResponse;
+        }
         
         try {
-            // Build context based on request type
+            // Step 2: Build context with user orders if authenticated
             String enhancedPrompt = buildEnhancedPrompt(request, userId);
             
-            // Call OpenAI with retry
+            // Step 3: Call OpenAI API
             ChatClient chatClient = chatClientBuilder.build();
             String aiResponse = chatClient.prompt()
                 .system(SYSTEM_PROMPT)
@@ -95,8 +114,8 @@ public class ChatAIServiceImpl implements ChatAIService {
             
             log.info("OpenAI response received successfully");
             
-            // Parse response and get product suggestions if applicable
-            List<ChatResponse.ProductSuggestion> suggestions = extractProductSuggestions(aiResponse, request);
+            // Step 4: Extract 3 product suggestions from AI response
+            List<ChatResponse.ProductSuggestion> suggestions = extractProductSuggestionsFromText(aiResponse);
             
             return ChatResponse.builder()
                 .message(aiResponse)
@@ -135,63 +154,57 @@ public class ChatAIServiceImpl implements ChatAIService {
         }
     }
     
-    @Override
-    public Flux<String> streamChat(ChatRequest request, Long userId) {
-        log.info("Streaming chat request from user: {}", userId);
+    /**
+     * Handle FAQ and basic greetings without calling OpenAI API
+     * Returns null if not a FAQ question
+     */
+    private ChatResponse handleFAQ(String message) {
+        // Use FAQConfig to find matching FAQ
+        FAQConfig.FAQResponse faqResponse = faqConfig.findMatchingFAQ(message);
         
-        try {
-            String enhancedPrompt = buildEnhancedPrompt(request, userId);
-            
-            ChatClient chatClient = chatClientBuilder.build();
-            return chatClient.prompt()
-                .system(SYSTEM_PROMPT)
-                .user(enhancedPrompt)
-                .stream()
-                .content();
-                
-        } catch (Exception e) {
-            log.error("Error streaming chat", e);
-            return Flux.just("Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau.");
+        if (faqResponse != null) {
+            log.info("FAQ matched for message: {}", message.substring(0, Math.min(30, message.length())));
+            return ChatResponse.builder()
+                    .message(faqResponse.getMessage())
+                    .timestamp(LocalDateTime.now())
+                    .suggestedProducts(Collections.emptyList())
+                    .responseType(faqResponse.getResponseType())
+                    .build();
         }
-    }
-    
-    @Override
-    public ChatResponse getProductRecommendations(String preferences, Long userId) {
-        ChatRequest request = ChatRequest.builder()
-            .message("Tôi muốn tìm kính với đặc điểm: " + preferences)
-            .contextType("product_recommendation")
-            .build();
         
-        return chat(request, userId);
-    }
-    
-    @Override
-    public ChatResponse getStyleAdvice(String faceShape, String skinTone, Long userId) {
-        String message = String.format(
-            "Tôi có khuôn mặt %s và tông da %s. Hãy tư vấn kiểu kính phù hợp cho tôi.",
-            faceShape, skinTone
-        );
-        
-        ChatRequest request = ChatRequest.builder()
-            .message(message)
-            .contextType("product_recommendation") // Changed to include product list
-            .contextData(String.format("{\"faceShape\": \"%s\", \"skinTone\": \"%s\"}", faceShape, skinTone))
-            .build();
-        
-        return chat(request, userId);
+        return null; // Not a FAQ, need to call API
     }
     
     /**
-     * Build enhanced prompt with user context
+     * Build enhanced prompt with user context and order history
      */
     private String buildEnhancedPrompt(ChatRequest request, Long userId) {
         StringBuilder prompt = new StringBuilder();
         
-        // Add user context if available
+        // Add user context and order history if authenticated
         if (userId != null) {
             userRepository.findById(userId).ifPresent(user -> {
-                prompt.append("Thông tin khách hàng: ");
-                prompt.append("Tên: ").append(user.getFullName()).append(". ");
+                prompt.append("👤 Thông tin khách hàng: ");
+                prompt.append("Tên: ").append(user.getFullName());
+                
+                // Add order history for personalization
+                try {
+                    List<Order> recentOrders = orderRepository.findTop3ByUserIdOrderByCreatedAtDesc(userId, 
+                        PageRequest.of(0, 3));
+                    if (!recentOrders.isEmpty()) {
+                        prompt.append("\n\n📦 Lịch sử mua hàng gần đây:");
+                        for (Order order : recentOrders) {
+                            prompt.append("\n- Đơn hàng ").append(order.getOrderCode())
+                                  .append(" (").append(order.getStatus()).append(")");
+                            // You could add order items here if needed for better context
+                        }
+                        prompt.append("\n\n💡 Khách hàng này đã mua hàng, hãy tư vấn dựa trên trải nghiệm của họ!");
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to load order history for user {}", userId, e);
+                }
+                
+                prompt.append("\n");
             });
         }
         
@@ -235,10 +248,11 @@ public class ChatAIServiceImpl implements ChatAIService {
             }
             
             prompt.append("📌 HƯỚNG DẪN:\n");
-            prompt.append("- BẮT BUỘC giới thiệu ÍT NHẤT 2 sản phẩm từ danh sách trên\n");
+            prompt.append("- BẮT BUỘC giới thiệu ĐÚNG 3 sản phẩm từ danh sách trên\n");
             prompt.append("- Chèn ID theo format: [PRODUCT_ID:123] ngay trong câu giới thiệu\n");
             prompt.append("- VÍ DỤ: \"Tôi gợi ý [PRODUCT_ID:5] - đây là lựa chọn hoàn hảo vì...\"\n");
             prompt.append("- Giải thích CỤ THỂ tại sao sản phẩm đó phù hợp với yêu cầu của khách\n");
+            prompt.append("- DEFAULT: Luôn gợi ý 3 sản phẩm phù hợp nhất với câu hỏi\n");
         } else {
             prompt.append("\n\n⚠️ Hiện không có sản phẩm nào. Chỉ đưa ra lời khuyên chung về phong cách kính mắt.");
         }
@@ -247,44 +261,49 @@ public class ChatAIServiceImpl implements ChatAIService {
     }
     
     /**
-     * Extract product suggestions from AI response
+     * Extract exactly 3 product suggestions from [PRODUCT_ID:X] in AI response
+     * Frontend will display these as product cards
      */
-    private List<ChatResponse.ProductSuggestion> extractProductSuggestions(
-            String aiResponse, 
-            ChatRequest request) {
-        
+    private List<ChatResponse.ProductSuggestion> extractProductSuggestionsFromText(String aiResponse) {
         List<ChatResponse.ProductSuggestion> suggestions = new ArrayList<>();
         
-        if (!"product_recommendation".equals(request.getContextType())) {
-            return suggestions;
-        }
-        
         try {
-            // Get top 3 products based on AI response keywords
-            List<Product> products = productRepository.findTop3ByActiveTrueOrderByCreatedAtDesc();
+            // Extract all [PRODUCT_ID:X] from AI response using regex
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\[PRODUCT_ID:(\\d+)\\]");
+            java.util.regex.Matcher matcher = pattern.matcher(aiResponse);
             
-            for (Product product : products) {
-                // Get primary image or first image
-                String imageUrl = productImageRepository.findPrimaryImageByProductId(product.getId())
-                    .map(ProductImage::getImageUrl)
-                    .orElse(null);
-                
-                // Generate product URL using slug or ID
-                String productUrl = "/products/" + (product.getSlug() != null ? product.getSlug() : product.getId());
-                
-                suggestions.add(ChatResponse.ProductSuggestion.builder()
-                    .productId(product.getId())
-                    .productName(product.getName())
-                    .productSlug(product.getSlug())
-                    .productUrl(productUrl)
-                    .imageUrl(imageUrl)
-                    .price(product.getPrice())
-                    .reason("Phù hợp với phong cách bạn đang tìm kiếm")
-                    .build());
+            java.util.Set<Long> productIds = new java.util.LinkedHashSet<>(); // Use Set to avoid duplicates
+            while (matcher.find() && productIds.size() < 3) {
+                productIds.add(Long.parseLong(matcher.group(1)));
             }
             
+            // Get product details for each ID
+            for (Long productId : productIds) {
+                productRepository.findById(productId).ifPresent(product -> {
+                    if (Boolean.TRUE.equals(product.getIsActive()) && product.getDeletedAt() == null) {
+                        String imageUrl = productImageRepository.findPrimaryImageByProductId(product.getId())
+                            .map(ProductImage::getImageUrl)
+                            .orElse(null);
+                        
+                        String productUrl = "/products/" + (product.getSlug() != null ? product.getSlug() : product.getId());
+                        
+                        suggestions.add(ChatResponse.ProductSuggestion.builder()
+                            .productId(product.getId())
+                            .productName(product.getName())
+                            .productSlug(product.getSlug())
+                            .productUrl(productUrl)
+                            .imageUrl(imageUrl)
+                            .price(product.getPrice())
+                            .reason("Được AI gợi ý phù hợp với nhu cầu của bạn")
+                            .build());
+                    }
+                });
+            }
+            
+            log.info("Extracted {} product suggestions from AI response", suggestions.size());
+            
         } catch (Exception e) {
-            log.error("Error extracting product suggestions", e);
+            log.error("Error extracting product suggestions from text", e);
         }
         
         return suggestions;

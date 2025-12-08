@@ -11,18 +11,31 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Chat AI request")
+@Schema(description = "Chat AI request - Simple and smart")
 public class ChatRequest {
     
     @NotBlank(message = "Message is required")
-    @Schema(description = "User message to AI", example = "Tôi muốn tìm kính gọng tròn phù hợp với mặt vuông")
+    @Schema(
+        description = "User message to AI chatbot. Ask anything about eyeglasses!", 
+        example = "Tôi muốn tìm kính gọng tròn phù hợp với mặt vuông",
+        requiredMode = Schema.RequiredMode.REQUIRED
+    )
     private String message;
     
-    @Schema(description = "Chat context type", example = "product_recommendation", 
-            allowableValues = {"product_recommendation", "style_advice", "general_chat"})
+    // Optional: Keep for backward compatibility, but no longer used
+    @Schema(
+        description = "Context type (deprecated - auto-detected by backend)", 
+        example = "product_recommendation",
+        deprecated = true
+    )
+    @Deprecated
     private String contextType;
     
-    @Schema(description = "Additional context data (user preferences, face shape, etc.)", 
-            example = "{\"faceShape\": \"square\", \"skinTone\": \"fair\"}")
+    @Schema(
+        description = "Additional context data (deprecated - handled by backend)", 
+        example = "{\"faceShape\": \"square\"}",
+        deprecated = true
+    )
+    @Deprecated
     private String contextData;
 }
