@@ -85,16 +85,10 @@ public class UserController {
     }
 
     /**
-     * Deactivate account
+     * Note: Account deactivation (soft delete) is now handled by Admin only
+     * through /api/admin/users/{id}/lock endpoint
+     * This prevents users from self-deactivating their accounts
      */
-    @DeleteMapping("/deactivate")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Deactivate account", description = "Soft delete user account")
-    public ResponseEntity<ApiResponse<Void>> deactivateAccount() {
-        log.info("DELETE /api/user/deactivate - Deactivate account");
-        userService.deactivateAccount();
-        return ResponseEntity.ok(ApiResponse.success("Account deactivated successfully"));
-    }
 
     @PostMapping("/profile/avatar")
     @PreAuthorize("isAuthenticated()")
