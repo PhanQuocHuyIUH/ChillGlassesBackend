@@ -123,6 +123,9 @@ public class SecurityConfig {
                         // Payment callback (public - từ payment gateway)
                         .requestMatchers(HttpMethod.POST, "/api/payments/callback").permitAll()
 
+                        // Chat AI guest endpoint (public - không cần authentication)
+                        .requestMatchers(HttpMethod.POST, "/api/chat-ai/guest-chat").permitAll()
+
                         // Swagger/OpenAPI documentation (nếu có)
                         .requestMatchers(
                                 "/swagger-ui/**",
