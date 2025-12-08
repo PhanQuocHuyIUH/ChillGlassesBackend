@@ -24,8 +24,9 @@ public class DashboardStatsDTO {
     // Order Statistics
     private Long totalOrders;
     private Long pendingOrders;
+    private Long confirmedOrders;
     private Long processingOrders;
-    private Long shippedOrders;
+    private Long shippingOrders;
     private Long deliveredOrders;
     private Long cancelledOrders;
 

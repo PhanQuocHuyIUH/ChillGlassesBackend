@@ -48,8 +48,9 @@ public class StatisticsServiceImpl implements StatisticsService {
         // Order Statistics
         Long totalOrders = orderRepository.count();
         Long pendingOrders = getOrderCountByStatus(OrderStatus.PENDING);
+        Long confirmedOrders = getOrderCountByStatus(OrderStatus.CONFIRMED);
         Long processingOrders = getOrderCountByStatus(OrderStatus.PROCESSING);
-        Long shippedOrders = getOrderCountByStatus(OrderStatus.SHIPPED);
+        Long shippingOrders = getOrderCountByStatus(OrderStatus.SHIPPING);
         Long deliveredOrders = getOrderCountByStatus(OrderStatus.DELIVERED);
         Long cancelledOrders = getOrderCountByStatus(OrderStatus.CANCELLED);
 
@@ -90,8 +91,9 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .activeUsers(activeUsers)
                 .totalOrders(totalOrders)
                 .pendingOrders(pendingOrders)
+                .confirmedOrders(confirmedOrders)
                 .processingOrders(processingOrders)
-                .shippedOrders(shippedOrders)
+                .shippingOrders(shippingOrders)
                 .deliveredOrders(deliveredOrders)
                 .cancelledOrders(cancelledOrders)
                 .totalRevenue(totalRevenue)

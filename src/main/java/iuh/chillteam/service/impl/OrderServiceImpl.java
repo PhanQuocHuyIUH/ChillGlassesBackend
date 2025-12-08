@@ -368,8 +368,8 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException("Cannot cancel delivered order");
         }
 
-        if (order.getStatus() == OrderStatus.SHIPPED) {
-            throw new BadRequestException("Cannot cancel shipped order. Please contact support.");
+        if (order.getStatus() == OrderStatus.SHIPPING) {
+            throw new BadRequestException("Cannot cancel shipping order. Please contact support.");
         }
 
         // Cancel and restore stock
@@ -415,8 +415,8 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException("Cannot change status of delivered order");
         }
 
-        // Validate logical flow: PENDING → PROCESSING → SHIPPED → DELIVERED
-        // Can cancel at PENDING or PROCESSING stage
+        // Validate logical flow: PENDING → CONFIRMED → PROCESSING → SHIPPING → DELIVERED
+        // Can cancel at PENDING, CONFIRMED or PROCESSING stage
     }
 
     /**
