@@ -135,10 +135,12 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new BadRequestException("User is already locked");
         }
 
+        // Lock user: set isActive = false AND soft delete
         user.setIsActive(false);
+        user.softDelete(); // Soft delete when locking
         user = userRepository.save(user);
 
-        log.info("Locked user: {}", userId);
+        log.info("Locked user (soft deleted): {}", userId);
         return convertToDTO(user);
     }
 
@@ -153,10 +155,12 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new BadRequestException("User is already unlocked");
         }
 
+        // Unlock user: set isActive = true AND restore from soft delete
         user.setIsActive(true);
+        user.restore(); // Restore when unlocking
         user = userRepository.save(user);
 
-        log.info("Unlocked user: {}", userId);
+        log.info("Unlocked user (restored): {}", userId);
         return convertToDTO(user);
     }
 
