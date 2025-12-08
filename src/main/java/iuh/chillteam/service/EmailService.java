@@ -1,5 +1,6 @@
 package iuh.chillteam.service;
 
+import iuh.chillteam.dto.order.OrderDTO;
 import iuh.chillteam.entity.Order;
 import iuh.chillteam.entity.User;
 
@@ -15,7 +16,7 @@ public interface EmailService {
     void sendWelcomeEmail(User user);
 
     /**
-     * Send order confirmation email
+     * Send order confirmation email (entity-based, legacy)
      */
     void sendOrderConfirmation(Order order);
 
@@ -35,7 +36,17 @@ public interface EmailService {
     void sendPromotionEmail(User user, String promotionCode, String description);
 
     /**
-     * Send generic email
+     * Send generic email (plain text)
      */
     void sendEmail(String to, String subject, String content);
+
+    /**
+     * Gửi email xác nhận đơn hàng mới (song ngữ, dùng OrderDTO).
+     */
+    void sendOrderConfirmationEmail(OrderDTO order);
+
+    /**
+     * Gửi email thông báo đơn hàng đã bị hủy (song ngữ, dùng OrderDTO).
+     */
+    void sendOrderCancellationEmail(OrderDTO order);
 }

@@ -27,4 +27,9 @@ public class OrderSummaryDTO {
     private PaymentStatus paymentStatus;
     private Integer totalItems;
     private LocalDateTime createdAt;
+    // thêm để fix promotion:
+    private String promotionCode;
+    private Double promotionDiscountAmount;
+    private String formattedPromotionDiscountAmount;
+
 }
