@@ -19,6 +19,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import iuh.chillteam.service.EmailService;
+
+
 /**
  * Order Service Implementation
  */
@@ -45,6 +48,10 @@ public class OrderServiceImpl implements OrderService {
     private static final Double EXPRESS_SHIPPING_FEE = 60000.0;
     // Nếu không dùng free-threshold nữa thì có thể bỏ hẳn dòng này
     // private static final Double FREE_SHIPPING_THRESHOLD = 500000.0;
+
+    // Dich vu gui email _ xác nhận đơn
+    private final EmailService emailService; // ⭐ thêm dòng này
+
 
 
     @Override
@@ -225,8 +232,19 @@ public class OrderServiceImpl implements OrderService {
         cartItemRepository.deleteAll(cartItems);
         log.info("Cleared cart for user: {}", userId);
 
-        return convertToDTO(order);
+        // Chuyển sang DTO để trả về FE và gửi email xác nhận
+        OrderDTO orderDTO = convertToDTO(order);
+
+        // Gửi email xác nhận đơn hàng (song ngữ, dùng DTO)
+        try {
+            emailService.sendOrderConfirmationEmail(orderDTO);
+        } catch (Exception e) {
+            log.error("Error while sending order confirmation email for order {}", order.getOrderCode(), e);
+        }
+
+        return orderDTO;
     }
+
 
 
     @Override
@@ -361,8 +379,18 @@ public class OrderServiceImpl implements OrderService {
         order = orderRepository.save(order);
         log.info("Cancelled order: {}", orderId);
 
-        return convertToDTO(order);
+        OrderDTO dto = convertToDTO(order);
+
+        // Gửi email thông báo hủy đơn (song ngữ)
+        try {
+            emailService.sendOrderCancellationEmail(dto);
+        } catch (Exception e) {
+            log.error("Error while sending order cancellation email for order {}", order.getOrderCode(), e);
+        }
+
+        return dto;
     }
+
 
     @Override
     public Double calculateShippingFee(ShippingMethod shippingMethod, Double orderAmount) {
