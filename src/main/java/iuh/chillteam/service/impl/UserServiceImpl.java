@@ -123,17 +123,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void deactivateAccount() {
-        User user = getCurrentAuthenticatedUser();
-        log.info("Deactivating account for user: {}", user.getEmail());
-
-        user.softDelete();
-        userRepository.save(user);
-
-        log.info("Account deactivated successfully for user: {}", user.getEmail());
-    }
-
-    @Override
     public UserDTO updateAvatar(MultipartFile file) throws IOException {
         User user = getCurrentAuthenticatedUser();
         String imageUrl = cloudinaryService.uploadUserAvatar(file); // mới: upload avatar

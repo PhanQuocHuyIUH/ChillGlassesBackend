@@ -24,8 +24,9 @@ public class DashboardStatsDTO {
     // Order Statistics
     private Long totalOrders;
     private Long pendingOrders;
+    private Long confirmedOrders;
     private Long processingOrders;
-    private Long shippedOrders;
+    private Long shippingOrders;
     private Long deliveredOrders;
     private Long cancelledOrders;
 
@@ -39,10 +40,15 @@ public class DashboardStatsDTO {
     private Long totalProducts;
     private Long activeProducts;
     private Long outOfStockProducts;
-    private Long lowStockProducts; // Stock < 10
+    private Long lowStockProducts; // Stock < 5
 
     // Growth Rates (optional)
     private Double revenueGrowthRate; // Compared to last month
     private Double orderGrowthRate;   // Compared to last month
     private Double userGrowthRate;    // Compared to last month
+    
+    // Today Statistics
+    private Long ordersToday;
+    private Long newUsersToday;
+    private Long pendingReviews; // For UI compatibility
 }

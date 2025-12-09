@@ -33,9 +33,7 @@ public interface UserService {
     void changePassword(ChangePasswordRequest request);
 
     /**
-     * Deactivate account (soft delete)
+     * Update user avatar
      */
-    void deactivateAccount();
-
     UserDTO updateAvatar(MultipartFile file)  throws IOException;
 }

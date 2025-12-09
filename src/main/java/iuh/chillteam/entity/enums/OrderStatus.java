@@ -5,8 +5,10 @@ package iuh.chillteam.entity.enums;
  */
 public enum OrderStatus {
     PENDING,      // Đang chờ xử lý
+    CONFIRMED,    // Đã xác nhận
     PROCESSING,   // Đang xử lý
-    SHIPPED,      // Đã giao cho đơn vị vận chuyển
+    SHIPPING,     // Đang giao hàng
     DELIVERED,    // Đã giao hàng
-    CANCELLED     // Đã hủy
+    CANCELLED,    // Đã hủy
+    REFUNDED      // Đã hoàn tiền
 }

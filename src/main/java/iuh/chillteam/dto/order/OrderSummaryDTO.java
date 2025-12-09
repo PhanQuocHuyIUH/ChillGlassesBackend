@@ -19,6 +19,8 @@ public class OrderSummaryDTO {
 
     private Long id;
     private String orderCode;
+    private String userFullName;
+    private String userEmail;
     private LocalDateTime orderDate;
     private Double totalAmount;
     private String formattedTotalAmount;

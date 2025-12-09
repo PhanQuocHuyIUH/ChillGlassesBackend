@@ -2,6 +2,7 @@ package iuh.chillteam.repository;
 
 import iuh.chillteam.entity.Order;
 import iuh.chillteam.entity.enums.OrderStatus;
+import iuh.chillteam.entity.enums.PaymentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -88,4 +89,36 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      */
     @Query(value = "SELECT o FROM Order o WHERE o.user.id = :userId AND o.deletedAt IS NULL ORDER BY o.createdAt DESC")
     List<Order> findTop3ByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
+
+    /**
+     * Find orders after date
+     */
+    @Query("SELECT o FROM Order o WHERE o.orderDate >= :startDate AND o.deletedAt IS NULL ORDER BY o.orderDate DESC")
+    List<Order> findByOrderDateAfter(@Param("startDate") LocalDateTime startDate);
+
+    /**
+     * Find orders before date
+     */
+    @Query("SELECT o FROM Order o WHERE o.orderDate <= :endDate AND o.deletedAt IS NULL ORDER BY o.orderDate DESC")
+    List<Order> findByOrderDateBefore(@Param("endDate") LocalDateTime endDate);
+
+    /**
+     * Search orders by code or customer name with filters
+     */
+    @Query("SELECT o FROM Order o WHERE o.deletedAt IS NULL " +
+           "AND (:search IS NULL OR LOWER(o.orderCode) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(o.user.fullName) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:paymentStatus IS NULL OR o.paymentStatus = :paymentStatus) " +
+           "AND (:startDate IS NULL OR o.orderDate >= :startDate) " +
+           "AND (:endDate IS NULL OR o.orderDate <= :endDate) " +
+           "ORDER BY o.orderDate DESC")
+    Page<Order> searchOrders(
+        @Param("search") String search,
+        @Param("status") OrderStatus status,
+        @Param("paymentStatus") PaymentStatus paymentStatus,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
+        Pageable pageable
+    );
 }

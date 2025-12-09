@@ -48,12 +48,25 @@ public class StatisticsServiceImpl implements StatisticsService {
         // Order Statistics
         Long totalOrders = orderRepository.count();
         Long pendingOrders = getOrderCountByStatus(OrderStatus.PENDING);
+        Long confirmedOrders = getOrderCountByStatus(OrderStatus.CONFIRMED);
         Long processingOrders = getOrderCountByStatus(OrderStatus.PROCESSING);
-        Long shippedOrders = getOrderCountByStatus(OrderStatus.SHIPPED);
+        Long shippingOrders = getOrderCountByStatus(OrderStatus.SHIPPING);
         Long deliveredOrders = getOrderCountByStatus(OrderStatus.DELIVERED);
         Long cancelledOrders = getOrderCountByStatus(OrderStatus.CANCELLED);
 
-        // Revenue Statistics
+        // Today's order statistics
+        LocalDateTime startOfToday = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+        Long ordersToday = orderRepository.findAll().stream()
+                .filter(o -> o.getOrderDate().isAfter(startOfToday))
+                .filter(o -> o.getStatus() != OrderStatus.CANCELLED)
+                .count();
+
+        // New users today
+        Long newUsersToday = userRepository.findAll().stream()
+                .filter(u -> u.getCreatedAt() != null && u.getCreatedAt().isAfter(startOfToday))
+                .count();
+
+        // Revenue Statistics - only DELIVERED+PAID or SHIPPING orders
         Double totalRevenue = calculateTotalRevenue();
         Double todayRevenue = getRevenueBetweenDates(LocalDate.now(), LocalDate.now());
         
@@ -75,7 +88,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .filter(p -> p.getStockQuantity() == 0)
                 .count();
         Long lowStockProducts = productRepository.findAll().stream()
-                .filter(p -> p.getStockQuantity() > 0 && p.getStockQuantity() < 10)
+                .filter(p -> p.getStockQuantity() > 0 && p.getStockQuantity() < 5)
                 .count();
 
         // Calculate Growth Rates
@@ -90,8 +103,9 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .activeUsers(activeUsers)
                 .totalOrders(totalOrders)
                 .pendingOrders(pendingOrders)
+                .confirmedOrders(confirmedOrders)
                 .processingOrders(processingOrders)
-                .shippedOrders(shippedOrders)
+                .shippingOrders(shippingOrders)
                 .deliveredOrders(deliveredOrders)
                 .cancelledOrders(cancelledOrders)
                 .totalRevenue(totalRevenue)
@@ -105,6 +119,8 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .revenueGrowthRate(revenueGrowthRate)
                 .orderGrowthRate(orderGrowthRate)
                 .userGrowthRate(userGrowthRate)
+                .ordersToday(ordersToday)
+                .newUsersToday(newUsersToday)
                 .build();
     }
 
@@ -117,7 +133,9 @@ public class StatisticsServiceImpl implements StatisticsService {
                     LocalDate orderDate = order.getOrderDate().toLocalDate();
                     return !orderDate.isBefore(startDate) && !orderDate.isAfter(endDate);
                 })
-                .filter(order -> order.getStatus() == OrderStatus.DELIVERED)
+                .filter(order -> (order.getStatus() == OrderStatus.DELIVERED && order.getPaymentStatus() == iuh.chillteam.entity.enums.PaymentStatus.PAID) 
+                        || order.getStatus() == OrderStatus.SHIPPING)
+                .filter(order -> order.getStatus() != OrderStatus.CANCELLED)
                 .collect(Collectors.toList());
 
         Map<String, List<Order>> groupedOrders = new HashMap<>();
@@ -190,8 +208,16 @@ public class StatisticsServiceImpl implements StatisticsService {
     public List<TopSellingProductDTO> getTopSellingProducts(int limit) {
         log.info("Getting top {} selling products", limit);
 
-        // Get all order items
-        List<OrderItem> orderItems = orderItemRepository.findAll();
+        // Get all order items from confirmed orders only (exclude PENDING and CANCELLED)
+        List<OrderItem> orderItems = orderItemRepository.findAll().stream()
+                .filter(item -> {
+                    Order order = item.getOrder();
+                    return order.getStatus() == OrderStatus.CONFIRMED
+                            || order.getStatus() == OrderStatus.PROCESSING
+                            || order.getStatus() == OrderStatus.SHIPPING
+                            || order.getStatus() == OrderStatus.DELIVERED;
+                })
+                .collect(Collectors.toList());
 
         // Group by product and calculate statistics
         Map<Long, List<OrderItem>> productOrderItems = orderItems.stream()
@@ -238,7 +264,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         log.info("Getting inventory report with threshold: {}", threshold);
 
         if (threshold == null) {
-            threshold = 10;
+            threshold = 5;
         }
 
         final Integer finalThreshold = threshold;
@@ -280,7 +306,9 @@ public class StatisticsServiceImpl implements StatisticsService {
                     LocalDateTime orderDate = order.getOrderDate();
                     return !orderDate.isBefore(startDateTime) && !orderDate.isAfter(endDateTime);
                 })
-                .filter(order -> order.getStatus() == OrderStatus.DELIVERED)
+                .filter(order -> (order.getStatus() == OrderStatus.DELIVERED && order.getPaymentStatus() == iuh.chillteam.entity.enums.PaymentStatus.PAID) 
+                        || order.getStatus() == OrderStatus.SHIPPING)
+                .filter(order -> order.getStatus() != OrderStatus.CANCELLED)
                 .mapToDouble(Order::getTotalAmount)
                 .sum();
     }
@@ -295,7 +323,9 @@ public class StatisticsServiceImpl implements StatisticsService {
      */
     private Double calculateTotalRevenue() {
         return orderRepository.findAll().stream()
-                .filter(order -> order.getStatus() == OrderStatus.DELIVERED)
+                .filter(order -> (order.getStatus() == OrderStatus.DELIVERED && order.getPaymentStatus() == iuh.chillteam.entity.enums.PaymentStatus.PAID) 
+                        || order.getStatus() == OrderStatus.SHIPPING)
+                .filter(order -> order.getStatus() != OrderStatus.CANCELLED)
                 .mapToDouble(Order::getTotalAmount)
                 .sum();
     }

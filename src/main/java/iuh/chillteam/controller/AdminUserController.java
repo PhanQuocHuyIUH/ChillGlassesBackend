@@ -99,7 +99,10 @@ public class AdminUserController {
      * Lock user account
      */
     @PostMapping("/{id}/lock")
-    @Operation(summary = "Lock user (Admin)", description = "Lock user account (set isActive = false)")
+    @Operation(
+        summary = "Lock user (Admin)", 
+        description = "Lock user account by setting isActive=false and performing soft delete. Locked users cannot login and are marked as deleted."
+    )
     public ResponseEntity<ApiResponse<UserDTO>> lockUser(@PathVariable Long id) {
         log.info("POST /api/admin/users/{}/lock - Lock user (Admin)", id);
         UserDTO user = adminUserService.lockUser(id);
@@ -110,7 +113,10 @@ public class AdminUserController {
      * Unlock user account
      */
     @PostMapping("/{id}/unlock")
-    @Operation(summary = "Unlock user (Admin)", description = "Unlock user account (set isActive = true)")
+    @Operation(
+        summary = "Unlock user (Admin)", 
+        description = "Unlock user account by setting isActive=true and restoring from soft delete. User can login again."
+    )
     public ResponseEntity<ApiResponse<UserDTO>> unlockUser(@PathVariable Long id) {
         log.info("POST /api/admin/users/{}/unlock - Unlock user (Admin)", id);
         UserDTO user = adminUserService.unlockUser(id);
