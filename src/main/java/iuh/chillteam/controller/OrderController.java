@@ -20,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import iuh.chillteam.dto.order.CancelOrderRequest;
 
 import java.util.List;
 
@@ -133,10 +134,11 @@ public class OrderController {
     @Operation(summary = "Cancel order", description = "Cancel an order (only PENDING or PROCESSING)")
     public ResponseEntity<ApiResponse<OrderDTO>> cancelOrder(
             @PathVariable Long id,
-            @AuthenticationPrincipal UserDetailsServiceImpl.CustomUserDetails userDetails
+            @AuthenticationPrincipal UserDetailsServiceImpl.CustomUserDetails userDetails,
+            @RequestBody(required = false) CancelOrderRequest request
     ) {
         log.info("POST /api/orders/{}/cancel - Cancel order", id);
-        OrderDTO order = orderService.cancelOrder(id, userDetails.getUserId());
+        OrderDTO order = orderService.cancelOrder(id, userDetails.getUserId(), request);
         return ResponseEntity.ok(ApiResponse.success("Order cancelled successfully", order));
     }
 

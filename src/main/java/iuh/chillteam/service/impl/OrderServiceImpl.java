@@ -348,7 +348,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderDTO cancelOrder(Long orderId, Long userId) {
+    public OrderDTO cancelOrder(Long orderId, Long userId, CancelOrderRequest request) {
         log.info("Cancelling order: {} by user: {}", orderId, userId);
 
         Order order = orderRepository.findById(orderId)
@@ -372,9 +372,40 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException("Cannot cancel shipping order. Please contact support.");
         }
 
-        // Cancel and restore stock
+        // 🔹 Gộp lý do hủy vào notes (phần này mình đã thêm trước đó, giữ nguyên)
+        if (request != null) {
+            String finalNotes = null;
+
+            if (request.getNotes() != null && !request.getNotes().isBlank()) {
+                finalNotes = request.getNotes().trim();
+            } else {
+                StringBuilder sb = new StringBuilder();
+                if (request.getReasons() != null && !request.getReasons().isEmpty()) {
+                    sb.append("Reasons: ").append(String.join(", ", request.getReasons()));
+                }
+                if (request.getOtherReason() != null && !request.getOtherReason().isBlank()) {
+                    if (sb.length() > 0) sb.append(" | ");
+                    sb.append("Other: ").append(request.getOtherReason().trim());
+                }
+                if (sb.length() > 0) {
+                    finalNotes = sb.toString();
+                }
+            }
+
+            if (finalNotes != null) {
+                String existing = order.getNotes();
+                if (existing != null && !existing.isBlank()) {
+                    order.setNotes(existing + " | Cancel reason: " + finalNotes);
+                } else {
+                    order.setNotes("Cancel reason: " + finalNotes);
+                }
+            }
+        }
+
+        // ✅ Cancel and restore stock + promotion usage
         order.setStatus(OrderStatus.CANCELLED);
         restoreStock(orderId);
+        restorePromotionUsage(orderId);  // ⭐ thêm dòng này
 
         order = orderRepository.save(order);
         log.info("Cancelled order: {}", orderId);
@@ -390,6 +421,8 @@ public class OrderServiceImpl implements OrderService {
 
         return dto;
     }
+
+
 
 
     @Override
@@ -433,6 +466,40 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Restored stock for cancelled order: {}", orderId);
     }
+
+    /**
+     * Restore promotion usage count when order is cancelled.
+     * Giảm usedCount của mã khuyến mãi đã áp dụng cho đơn (nếu có).
+     */
+    private void restorePromotionUsage(Long orderId) {
+        // Mặc dù bảng order_promotion có unique order_id,
+        // repo vẫn trả List nên ta xử lý dạng list cho chắc.
+        List<OrderPromotion> orderPromotions = orderPromotionRepository.findByOrderId(orderId);
+
+        if (orderPromotions == null || orderPromotions.isEmpty()) {
+            log.info("No promotion to restore for order: {}", orderId);
+            return;
+        }
+
+        for (OrderPromotion op : orderPromotions) {
+            Promotion promo = op.getPromotion();
+            if (promo == null) continue;
+
+            Integer usedCount = promo.getUsedCount();
+            if (usedCount == null) usedCount = 0;
+
+            if (usedCount > 0) {
+                promo.setUsedCount(usedCount - 1);
+                promotionRepository.save(promo);
+                log.info("Restored promotion usage for code {} on order {}. usedCount: {} -> {}",
+                        promo.getCode(), orderId, usedCount, usedCount - 1);
+            } else {
+                log.warn("Promotion {} for order {} has non-positive usedCount ({}), skip decrement.",
+                        promo.getCode(), orderId, usedCount);
+            }
+        }
+    }
+
 
     /**
      * Generate unique order code
