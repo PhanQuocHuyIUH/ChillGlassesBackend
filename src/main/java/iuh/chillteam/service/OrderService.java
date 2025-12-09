@@ -56,7 +56,10 @@ public interface OrderService {
     /**
      * Cancel order
      */
-    OrderDTO cancelOrder(Long orderId, Long userId);
+    /**
+     * Cancel order_Sửa giúp chỉnh lưu lại được lý do hủy đơn hàng vào cột notes trong bảng order
+     */
+    OrderDTO cancelOrder(Long orderId, Long userId, CancelOrderRequest request);
 
     /**
      * Calculate shipping fee
