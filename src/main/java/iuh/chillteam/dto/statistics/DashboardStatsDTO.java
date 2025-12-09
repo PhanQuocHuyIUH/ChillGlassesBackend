@@ -40,10 +40,15 @@ public class DashboardStatsDTO {
     private Long totalProducts;
     private Long activeProducts;
     private Long outOfStockProducts;
-    private Long lowStockProducts; // Stock < 10
+    private Long lowStockProducts; // Stock < 5
 
     // Growth Rates (optional)
     private Double revenueGrowthRate; // Compared to last month
     private Double orderGrowthRate;   // Compared to last month
     private Double userGrowthRate;    // Compared to last month
+    
+    // Today Statistics
+    private Long ordersToday;
+    private Long newUsersToday;
+    private Long pendingReviews; // For UI compatibility
 }
