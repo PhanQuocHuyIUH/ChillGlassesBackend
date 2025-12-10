@@ -49,4 +49,25 @@ public interface EmailService {
      * Gửi email thông báo đơn hàng đã bị hủy (song ngữ, dùng OrderDTO).
      */
     void sendOrderCancellationEmail(OrderDTO order);
+
+
+    /**
+     * Gửi email khi đơn hàng online được tạo nhưng CHƯA thanh toán.
+     */
+    void sendOrderAwaitingPaymentEmail(OrderDTO order);
+
+
+    /** Gửi email thông báo đơn hàng đã được hoàn tiền (online payment). */
+    void sendOrderRefundEmail(OrderDTO order);
+
+    /**
+     * Gửi email thông báo thanh toán thành công cho đơn hàng (online payment).
+     */
+    void sendOrderPaymentSuccess(Order order);
+
+    /**
+     * Gửi email thông báo thanh toán thất bại cho đơn hàng (online payment).
+     */
+    void sendOrderPaymentFailed(Order order);
+
 }

@@ -61,6 +61,19 @@ public interface OrderService {
      */
     OrderDTO cancelOrder(Long orderId, Long userId, CancelOrderRequest request);
 
+
+    /**
+     * Mark payment success for an order (online payment mock)
+     */
+    OrderDTO markPaymentSuccess(Long orderId, Long userId);
+
+    /**
+     * Mark payment fail for an order (online payment mock)
+     */
+    OrderDTO markPaymentFail(Long orderId, Long userId);
+
+
+
     /**
      * Calculate shipping fee
      */

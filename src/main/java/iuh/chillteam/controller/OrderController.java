@@ -20,7 +20,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import iuh.chillteam.dto.order.CancelOrderRequest;
 
 import java.util.List;
 
@@ -134,13 +133,15 @@ public class OrderController {
     @Operation(summary = "Cancel order", description = "Cancel an order (only PENDING or PROCESSING)")
     public ResponseEntity<ApiResponse<OrderDTO>> cancelOrder(
             @PathVariable Long id,
-            @AuthenticationPrincipal UserDetailsServiceImpl.CustomUserDetails userDetails,
-            @RequestBody(required = false) CancelOrderRequest request
+            @Valid @RequestBody(required = false) CancelOrderRequest request,
+            @AuthenticationPrincipal UserDetailsServiceImpl.CustomUserDetails userDetails
     ) {
         log.info("POST /api/orders/{}/cancel - Cancel order", id);
         OrderDTO order = orderService.cancelOrder(id, userDetails.getUserId(), request);
         return ResponseEntity.ok(ApiResponse.success("Order cancelled successfully", order));
     }
+
+
 
     // ========== ADMIN ENDPOINTS ==========
 
@@ -211,4 +212,36 @@ public class OrderController {
         OrderDTO order = orderService.updateOrderStatus(id, request);
         return ResponseEntity.ok(ApiResponse.success("Order status updated successfully", order));
     }
+
+    /**
+     * Mark payment success for online orders (mock)
+     */
+    @PostMapping("/{id}/payment/success")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Mark payment success", description = "Mock online payment success for an order")
+    public ResponseEntity<ApiResponse<OrderDTO>> markPaymentSuccess(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetailsServiceImpl.CustomUserDetails userDetails
+    ) {
+        log.info("POST /api/orders/{}/payment/success - Mark payment success", id);
+        OrderDTO order = orderService.markPaymentSuccess(id, userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success("Payment marked as success", order));
+    }
+
+    /**
+     * Mark payment failed for online orders (mock)
+     */
+    @PostMapping("/{id}/payment/fail")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Mark payment failed", description = "Mock online payment failure for an order")
+    public ResponseEntity<ApiResponse<OrderDTO>> markPaymentFail(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetailsServiceImpl.CustomUserDetails userDetails
+    ) {
+        log.info("POST /api/orders/{}/payment/fail - Mark payment failed", id);
+        OrderDTO order = orderService.markPaymentFail(id, userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success("Payment marked as failed", order));
+    }
+
+
 }

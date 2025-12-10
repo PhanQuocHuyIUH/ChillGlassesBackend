@@ -50,8 +50,7 @@ public class OrderServiceImpl implements OrderService {
     // private static final Double FREE_SHIPPING_THRESHOLD = 500000.0;
 
     // Dich vu gui email _ xác nhận đơn
-    private final EmailService emailService; // ⭐ thêm dòng này
-
+    private final EmailService emailService;
 
 
     @Override
@@ -164,7 +163,6 @@ public class OrderServiceImpl implements OrderService {
             promotionDescription = descBuilder.toString();
         }
 
-
         // Calculate total amount (subtotal + shipping - discount)
         Double totalAmount = subtotal + shippingFee - discountAmount;
 
@@ -237,14 +235,19 @@ public class OrderServiceImpl implements OrderService {
 
         // Gửi email xác nhận đơn hàng (song ngữ, dùng DTO)
         try {
-            emailService.sendOrderConfirmationEmail(orderDTO);
+            if (order.getPaymentMethod() == PaymentMethod.COD) {
+                // COD: gửi email xác nhận như cũ
+                emailService.sendOrderConfirmationEmail(orderDTO);
+            } else {
+                // Online (BANK_TRANSFER, E_WALLET...): gửi email "chờ thanh toán"
+                emailService.sendOrderAwaitingPaymentEmail(orderDTO);
+            }
         } catch (Exception e) {
-            log.error("Error while sending order confirmation email for order {}", order.getOrderCode(), e);
+            log.error("Error while sending order email for order {}", order.getOrderCode(), e);
         }
 
         return orderDTO;
     }
-
 
 
     @Override
@@ -349,30 +352,32 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderDTO cancelOrder(Long orderId, Long userId, CancelOrderRequest request) {
+
         log.info("Cancelling order: {} by user: {}", orderId, userId);
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found"));
 
-        // Check ownership
+        // ✅ Check ownership
         if (!order.getUser().getId().equals(userId)) {
             throw new ForbiddenException("You don't have permission to cancel this order");
         }
 
-        // Validate can cancel
-        if (order.getStatus() == OrderStatus.CANCELLED) {
+        // ✅ Validate status có thể hủy
+        // Không cho hủy nếu đã CANCELLED / REFUNDED
+        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.REFUNDED) {
             throw new BadRequestException("Order is already cancelled");
         }
-
+        // Không cho hủy nếu đã giao xong
         if (order.getStatus() == OrderStatus.DELIVERED) {
             throw new BadRequestException("Cannot cancel delivered order");
         }
-
+        // Không cho hủy nếu đang giao
         if (order.getStatus() == OrderStatus.SHIPPING) {
             throw new BadRequestException("Cannot cancel shipping order. Please contact support.");
         }
 
-        // 🔹 Gộp lý do hủy vào notes (phần này mình đã thêm trước đó, giữ nguyên)
+        // ✅ Build finalNotes từ request (notes / reasons / otherReason)
         if (request != null) {
             String finalNotes = null;
 
@@ -402,27 +407,123 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // ✅ Cancel and restore stock + promotion usage
+        // ✅ Phân biệt flow: hủy thường vs hủy + hoàn tiền
+        boolean isOnlinePayment = order.getPaymentMethod() != PaymentMethod.COD;
+        boolean isPaid = order.getPaymentStatus() == PaymentStatus.PAID;
+        boolean isRefunded = isOnlinePayment && isPaid;
+
+        if (isRefunded) {
+            // Ghi chú thêm vào notes để dễ debug / hiển thị chi tiết
+            String existing = order.getNotes();
+            String refundTag = "Refund processed for online payment";
+            if (existing != null && !existing.isBlank()) {
+                order.setNotes(existing + " | " + refundTag);
+            } else {
+                order.setNotes(refundTag);
+            }
+        }
+
+        // 🔴 Trạng thái cuối cùng trên OrderStatus: luôn CANCELLED
+        // (Không dùng REFUNDED để tránh xung đột FE / filter)
         order.setStatus(OrderStatus.CANCELLED);
+
+        // ✅ Luôn trả hàng về kho + trả promotion usage
         restoreStock(orderId);
-        restorePromotionUsage(orderId);  // ⭐ thêm dòng này
+        restorePromotionUsage(orderId);
 
         order = orderRepository.save(order);
-        log.info("Cancelled order: {}", orderId);
+        log.info("Cancelled order: {} with status {} (isRefunded={})",
+                orderId, order.getStatus(), isRefunded);
 
         OrderDTO dto = convertToDTO(order);
 
-        // Gửi email thông báo hủy đơn (song ngữ)
+        // ✅ Gửi email phù hợp:
+        // - Hủy thường: email hủy đơn
+        // - Online đã thanh toán: email hoàn tiền (song ngữ)
         try {
-            emailService.sendOrderCancellationEmail(dto);
+            if (isRefunded) {
+                emailService.sendOrderRefundEmail(dto);
+            } else {
+                emailService.sendOrderCancellationEmail(dto);
+            }
         } catch (Exception e) {
-            log.error("Error while sending order cancellation email for order {}", order.getOrderCode(), e);
+            log.error("Error while sending cancel/refund email for order {}", order.getOrderCode(), e);
         }
 
         return dto;
     }
 
 
+
+    @Override
+    public OrderDTO markPaymentSuccess(Long orderId, Long userId) {
+        log.info("Mark payment SUCCESS for order {} by user {}", orderId, userId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
+
+        // check quyền
+        if (!order.getUser().getId().equals(userId)) {
+            throw new ForbiddenException("You don't have permission to update this order");
+        }
+
+        // không cho mock thanh toán cho COD
+        if (order.getPaymentMethod() == PaymentMethod.COD) {
+            throw new BadRequestException("COD orders cannot be marked as online payment");
+        }
+
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            // đã PAID rồi thì trả về luôn
+            return convertToDTO(order);
+        }
+
+        order.setPaymentStatus(PaymentStatus.PAID);
+
+        // optional: nếu vẫn đang PENDING thì chuyển sang PROCESSING
+        if (order.getStatus() == OrderStatus.PENDING) {
+            order.setStatus(OrderStatus.PROCESSING);
+        }
+
+        order = orderRepository.save(order);
+
+        // gửi email "thanh toán thành công"
+        try {
+            emailService.sendOrderPaymentSuccess(order);
+        } catch (Exception e) {
+            log.error("Error while sending payment success email for order {}", order.getOrderCode(), e);
+        }
+
+        return convertToDTO(order);
+    }
+
+    @Override
+    public OrderDTO markPaymentFail(Long orderId, Long userId) {
+        log.info("Mark payment FAIL for order {} by user {}", orderId, userId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
+
+        if (!order.getUser().getId().equals(userId)) {
+            throw new ForbiddenException("You don't have permission to update this order");
+        }
+
+        if (order.getPaymentMethod() == PaymentMethod.COD) {
+            throw new BadRequestException("COD orders cannot be marked as online payment");
+        }
+
+        // đảm bảo trạng thái vẫn UNPAID
+        order.setPaymentStatus(PaymentStatus.UNPAID);
+        order = orderRepository.save(order);
+
+        // gửi email "thanh toán thất bại"
+        try {
+            emailService.sendOrderPaymentFailed(order);
+        } catch (Exception e) {
+            log.error("Error while sending payment failed email for order {}", order.getOrderCode(), e);
+        }
+
+        return convertToDTO(order);
+    }
 
 
     @Override
@@ -449,7 +550,8 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // Validate logical flow: PENDING → CONFIRMED → PROCESSING → SHIPPING → DELIVERED
-        // Can cancel at PENDING, CONFIRMED or PROCESSING stage
+        // Flow mới: PENDING → PROCESSING → SHIPPED → DELIVERED
+        // Có thể CANCELLED ở PENDING hoặc PROCESSING
     }
 
     /**

@@ -91,6 +91,95 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 
+    // ====================== PAYMENT RESULT EMAILS ======================
+
+    @Override
+    @Async("emailTaskExecutor")
+    public void sendOrderPaymentSuccess(Order order) {
+        if (order == null || order.getUser() == null) {
+            log.warn("Skip sending payment success email because order or user is null");
+            return;
+        }
+
+        log.info("Sending payment success email for order: {}", order.getOrderCode());
+
+        String subject = "Thanh toán thành công cho đơn hàng #" + order.getOrderCode();
+        String content = buildPaymentSuccessContent(order);
+
+        try {
+            sendHtmlEmail(order.getUser().getEmail(), subject, content);
+            log.info("Payment success email sent successfully for order: {}", order.getOrderCode());
+        } catch (Exception e) {
+            log.error("Failed to send payment success email for order: {}", order.getOrderCode(), e);
+        }
+    }
+
+    @Override
+    @Async("emailTaskExecutor")
+    public void sendOrderPaymentFailed(Order order) {
+        if (order == null || order.getUser() == null) {
+            log.warn("Skip sending payment failed email because order or user is null");
+            return;
+        }
+
+        log.info("Sending payment failed email for order: {}", order.getOrderCode());
+
+        String subject = "Thanh toán thất bại cho đơn hàng #" + order.getOrderCode();
+        String content = buildPaymentFailedContent(order);
+
+        try {
+            sendHtmlEmail(order.getUser().getEmail(), subject, content);
+            log.info("Payment failed email sent successfully for order: {}", order.getOrderCode());
+        } catch (Exception e) {
+            log.error("Failed to send payment failed email for order: {}", order.getOrderCode(), e);
+        }
+    }
+
+    @Override
+    @Async("emailTaskExecutor")
+    public void sendOrderAwaitingPaymentEmail(OrderDTO order) {
+        if (order == null || order.getUserEmail() == null || order.getUserEmail().isBlank()) {
+            log.warn("Skip sending awaiting payment email because email is empty. orderCode={}",
+                    order != null ? order.getOrderCode() : null);
+            return;
+        }
+
+        String to = order.getUserEmail();
+        String subject = "[ChillGlasses] Đơn hàng đã tạo – chờ thanh toán " + order.getOrderCode();
+        String content = buildOrderAwaitingPaymentContentFromDTO(order);
+
+        try {
+            sendHtmlEmail(to, subject, content);
+            log.info("Sent awaiting payment email to {} for order {}", to, order.getOrderCode());
+        } catch (Exception e) {
+            log.error("Failed to send awaiting payment email for order {}", order.getOrderCode(), e);
+        }
+    }
+
+
+    @Override
+    @Async("emailTaskExecutor")
+    public void sendOrderRefundEmail(OrderDTO order) {
+        if (order == null || order.getUserEmail() == null || order.getUserEmail().isBlank()) {
+            log.warn("Skip sending refund email because email is empty. orderCode={}",
+                    order != null ? order.getOrderCode() : null);
+            return;
+        }
+
+        String to = order.getUserEmail();
+        String subject = "[ChillGlasses] Hoàn tiền đơn hàng / Refund confirmation " + order.getOrderCode();
+        String content = buildOrderRefundContentFromDTO(order);
+
+        try {
+            sendHtmlEmail(to, subject, content);
+            log.info("Sent refund email to {} for order {}", to, order.getOrderCode());
+        } catch (Exception e) {
+            log.error("Failed to send refund email for order {}", order.getOrderCode(), e);
+        }
+    }
+
+
+
     // ====================== PASSWORD RESET ======================
 
     @Override
@@ -330,6 +419,94 @@ public class EmailServiceImpl implements EmailService {
     }
 
     /**
+     * Build payment success email content
+     */
+    private String buildPaymentSuccessContent(Order order) {
+        return """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                        .header { background: #28a745; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                        .footer { text-align: center; margin-top: 30px; color: #888; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>💳 Thanh toán thành công!</h1>
+                        </div>
+                        <div class="content">
+                            <p>Xin chào <strong>%s</strong>,</p>
+                            <p>Thanh toán cho đơn hàng <strong>#%s</strong> đã được xử lý thành công.</p>
+                            <p><strong>Số tiền:</strong> %s</p>
+                            <p><strong>Phương thức thanh toán:</strong> %s</p>
+                            <p>Chúng tôi sẽ sớm tiến hành xử lý và giao hàng cho bạn.</p>
+                            <p>Cảm ơn bạn đã mua sắm tại ChillGlasses! 🕶️</p>
+                        </div>
+                        <div class="footer">
+                            <p>&copy; 2025 ChillGlasses. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """.formatted(
+                order.getUser().getFullName(),
+                order.getOrderCode(),
+                FormatUtils.formatPrice(order.getTotalAmount()),
+                getPaymentMethodLabel(order.getPaymentMethod().name())
+        );
+    }
+
+    /**
+     * Build payment failed email content
+     */
+    private String buildPaymentFailedContent(Order order) {
+        return """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                        .header { background: #dc3545; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                        .footer { text-align: center; margin-top: 30px; color: #888; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>⚠️ Thanh toán chưa thành công</h1>
+                        </div>
+                        <div class="content">
+                            <p>Xin chào <strong>%s</strong>,</p>
+                            <p>Thanh toán cho đơn hàng <strong>#%s</strong> hiện chưa được xử lý thành công.</p>
+                            <p><strong>Số tiền cần thanh toán:</strong> %s</p>
+                            <p><strong>Phương thức thanh toán:</strong> %s</p>
+                            <p>Bạn có thể thử thanh toán lại sau hoặc liên hệ bộ phận hỗ trợ nếu cần giúp đỡ.</p>
+                        </div>
+                        <div class="footer">
+                            <p>&copy; 2025 ChillGlasses. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """.formatted(
+                order.getUser().getFullName(),
+                order.getOrderCode(),
+                FormatUtils.formatPrice(order.getTotalAmount()),
+                getPaymentMethodLabel(order.getPaymentMethod().name())
+        );
+    }
+
+
+    /**
      * Build order status update email content
      */
     private String buildOrderStatusUpdateContent(Order order, String oldStatus, String newStatus) {
@@ -378,6 +555,143 @@ public class EmailServiceImpl implements EmailService {
                 getStatusLabel(newStatus),
                 statusMessage,
                 order.getShippingAddress()
+        );
+    }
+
+    private String buildOrderAwaitingPaymentContentFromDTO(OrderDTO order) {
+
+        String paymentLabel = getPaymentMethodLabel(order.getPaymentMethod().name());
+        String shippingLabel = getShippingMethodLabel(order.getShippingMethod().name());
+
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+                    .header { background: #ffc107; color: #212529; padding: 24px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9f9f9; padding: 24px; border-radius: 0 0 10px 10px; }
+                    .footer { text-align: center; margin-top: 24px; color: #888; font-size: 12px; }
+                    .bank-box { background: #fff; border-left: 4px solid #ffc107; padding: 16px; margin-top: 16px; font-size: 14px; }
+                    .order-info p { margin: 2px 0; }
+                    hr { margin: 20px 0; border: none; border-top: 1px solid #ddd; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h2>Đơn hàng của bạn đã được tạo, chờ thanh toán</h2>
+                    </div>
+                    <div class="content">
+                        <p>Xin chào <strong>%s</strong>,</p>
+                        <p>Cảm ơn bạn đã đặt hàng tại <strong>ChillGlasses</strong>! Đơn hàng của bạn đã được tạo thành công. Vui lòng hoàn tất thanh toán để chúng tôi bắt đầu xử lý đơn hàng.</p>
+
+                        <div class="order-info">
+                            <p><strong>Thông tin đơn hàng</strong></p>
+                            <p><strong>Mã đơn hàng:</strong> %s</p>
+                            <p><strong>Ngày đặt:</strong> %s</p>
+                            <p><strong>Địa chỉ giao hàng:</strong> %s</p>
+                            <p><strong>Phương thức thanh toán:</strong> %s</p>
+                            <p><strong>Phương thức vận chuyển:</strong> %s</p>
+                        </div>
+
+                        <div class="bank-box">
+                            <p><strong>Phương thức thanh toán: Chuyển khoản ngân hàng.</strong></p>
+                            <p>Vui lòng chuyển khoản theo thông tin sau (ví dụ):</p>
+                            <ul>
+                                <li>Ngân hàng: <strong>Vietcombank</strong></li>
+                                <li>Số tài khoản: <strong>xxx xxx xxx</strong></li>
+                                <li>Chủ tài khoản: <strong>CTY TNHH ChillGlasses</strong></li>
+                                <li>Nội dung chuyển khoản: <strong>Thanh toan don %s</strong></li>
+                            </ul>
+                        </div>
+
+                        <hr/>
+
+                        <p><strong>Tổng cộng:</strong> %s</p>
+
+                        <p>Chúng tôi sẽ thông báo cho bạn khi đơn hàng được giao cho đơn vị vận chuyển hoặc khi thanh toán không thành công.</p>
+
+                        <p style="margin-top: 12px; font-size: 13px; color: #555;">
+                            Nếu bạn đã thanh toán nhưng vẫn nhận được email này, vui lòng bỏ qua hoặc liên hệ bộ phận hỗ trợ để được kiểm tra lại.
+                        </p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; 2025 ChillGlasses. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                order.getUserFullName(),
+                order.getOrderCode(),
+                order.getOrderDate(),
+                order.getShippingAddress(),
+                paymentLabel,
+                shippingLabel,
+                order.getOrderCode(),
+                order.getFormattedTotalAmount()
+        );
+    }
+
+
+    private String buildOrderRefundContentFromDTO(OrderDTO order) {
+        String paymentLabel = getPaymentMethodLabel(order.getPaymentMethod().name());
+
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+                    .header { background: #17a2b8; color: white; padding: 24px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9f9f9; padding: 24px; border-radius: 0 0 10px 10px; }
+                    .footer { text-align: center; margin-top: 24px; color: #888; font-size: 12px; }
+                    hr { margin: 24px 0; border: none; border-top: 1px solid #ddd; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h2>✅ Hoàn tiền đơn hàng thành công / Refund completed</h2>
+                    </div>
+                    <div class="content">
+                        <!-- VI -->
+                        <p>Xin chào <strong>%s</strong>,</p>
+                        <p>Đơn hàng với mã <strong>%s</strong> đã được <strong>hủy</strong> và số tiền đã được <strong>hoàn lại</strong> theo phương thức thanh toán ban đầu.</p>
+                        <p><strong>Số tiền hoàn lại:</strong> %s</p>
+                        <p><strong>Phương thức thanh toán:</strong> %s</p>
+
+                        <p>Nếu bạn chưa nhận được tiền trong vòng 3–5 ngày làm việc, vui lòng liên hệ với ngân hàng hoặc ví điện tử của bạn, hoặc phản hồi email này để được hỗ trợ.</p>
+
+                        <hr/>
+
+                        <!-- EN -->
+                        <p><em>Dear <strong>%s</strong>,</em></p>
+                        <p><em>Your order <strong>%s</strong> has been <strong>cancelled</strong> and the amount has been <strong>refunded</strong> to your original payment method.</em></p>
+                        <p><em><strong>Refund amount:</strong> %s</em></p>
+                        <p><em><strong>Payment method:</strong> %s</em></p>
+                        <p><em>If the refund does not appear in your account within 3–5 business days, please contact your bank / e-wallet or reply to this email for further assistance.</em></p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; 2025 ChillGlasses. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                order.getUserFullName(),
+                order.getOrderCode(),
+                order.getFormattedTotalAmount(),
+                paymentLabel,
+                order.getUserFullName(),
+                order.getOrderCode(),
+                order.getFormattedTotalAmount(),
+                paymentLabel
         );
     }
 
@@ -502,7 +816,7 @@ public class EmailServiceImpl implements EmailService {
         return switch (status) {
             case "PENDING" -> "Chờ xác nhận";
             case "PROCESSING" -> "Đang xử lý";
-            case "SHIPPED" -> "Đang giao hàng";
+            case "SHIPPING" -> "Đang giao hàng";
             case "DELIVERED" -> "Đã giao hàng";
             case "CANCELLED" -> "Đã hủy";
             default -> status;
@@ -513,7 +827,7 @@ public class EmailServiceImpl implements EmailService {
         return switch (status) {
             case "PENDING" -> "Đơn hàng của bạn đang chờ xác nhận từ hệ thống.";
             case "PROCESSING" -> "Đơn hàng của bạn đang được chuẩn bị và đóng gói.";
-            case "SHIPPED" -> "Đơn hàng của bạn đã được giao cho đơn vị vận chuyển và đang trên đường giao đến bạn.";
+            case "SHIPPING" -> "Đơn hàng của bạn đã được giao cho đơn vị vận chuyển và đang trên đường giao đến bạn.";
             case "DELIVERED" -> "Đơn hàng của bạn đã được giao thành công. Cảm ơn bạn đã mua hàng!";
             case "CANCELLED" -> "Đơn hàng của bạn đã bị hủy. Nếu có thắc mắc, vui lòng liên hệ với chúng tôi.";
             default -> "";
@@ -524,12 +838,13 @@ public class EmailServiceImpl implements EmailService {
         return switch (status) {
             case "PENDING" -> "#ffc107";
             case "PROCESSING" -> "#17a2b8";
-            case "SHIPPED" -> "#007bff";
+            case "SHIPPING" -> "#007bff";
             case "DELIVERED" -> "#28a745";
             case "CANCELLED" -> "#dc3545";
             default -> "#6c757d";
         };
     }
+
 
     // ====================== NEW: DTO-BASED, SONG NGỮ ======================
 
