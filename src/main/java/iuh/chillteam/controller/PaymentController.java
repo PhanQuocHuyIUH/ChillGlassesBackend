@@ -3,14 +3,17 @@ package iuh.chillteam.controller;
 import iuh.chillteam.dto.common.ApiResponse;
 import iuh.chillteam.entity.enums.PaymentMethod;
 import iuh.chillteam.entity.enums.PaymentStatus;
+import iuh.chillteam.security.UserDetailsServiceImpl;
 import iuh.chillteam.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -37,10 +40,11 @@ public class PaymentController {
     @Operation(summary = "Process payment", description = "Process payment for an order")
     public ResponseEntity<ApiResponse<String>> processPayment(
             @PathVariable Long orderId,
-            @RequestParam PaymentMethod paymentMethod
+            @RequestParam PaymentMethod paymentMethod,
+            @AuthenticationPrincipal UserDetailsServiceImpl.CustomUserDetails userDetails
     ) {
         log.info("POST /api/payments/process/{} - Process payment with method: {}", orderId, paymentMethod);
-        String transactionId = paymentService.processPayment(orderId, paymentMethod);
+        String transactionId = paymentService.processPayment(orderId, userDetails.getUserId(), paymentMethod);
         return ResponseEntity.ok(ApiResponse.success("Payment processed successfully", transactionId));
     }
 
@@ -54,10 +58,18 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<String>> generatePaymentUrl(
             @PathVariable Long orderId,
             @RequestParam Double amount,
-            @RequestParam PaymentMethod paymentMethod
+            @RequestParam PaymentMethod paymentMethod,
+            @AuthenticationPrincipal UserDetailsServiceImpl.CustomUserDetails userDetails,
+            HttpServletRequest request
     ) {
         log.info("GET /api/payments/url/{} - Generate payment URL", orderId);
-        String paymentUrl = paymentService.generatePaymentUrl(orderId, amount, paymentMethod);
+        String paymentUrl = paymentService.generatePaymentUrl(
+                orderId,
+                userDetails.getUserId(),
+                amount,
+                paymentMethod,
+                request.getRemoteAddr()
+        );
         return ResponseEntity.ok(ApiResponse.success("Payment URL generated successfully", paymentUrl));
     }
 
@@ -86,6 +98,34 @@ public class PaymentController {
         paymentService.handlePaymentCallback(transactionId, status);
 
         return ResponseEntity.ok(ApiResponse.success("Payment callback processed successfully"));
+    }
+
+    /**
+     * VNPay return callback (frontend redirect)
+     */
+    @GetMapping("/callback/vnpay")
+    @Operation(summary = "VNPay return callback", description = "Handle VNPay return callback from user redirect")
+    public ResponseEntity<ApiResponse<Boolean>> handleVnpayCallback(
+            @RequestParam Map<String, String> callbackParams
+    ) {
+        boolean success = paymentService.handleVnpayCallback(callbackParams);
+        if (!success) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Invalid VNPay callback signature"));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success("VNPay callback processed", true));
+    }
+
+    /**
+     * VNPay IPN callback (server-to-server)
+     */
+    @GetMapping("/ipn/vnpay")
+    @Operation(summary = "VNPay IPN callback", description = "Handle VNPay instant payment notification")
+    public ResponseEntity<Map<String, String>> handleVnpayIpn(
+            @RequestParam Map<String, String> callbackParams
+    ) {
+        Map<String, String> response = paymentService.handleVnpayIpn(callbackParams);
+        return ResponseEntity.ok(response);
     }
 
     /**

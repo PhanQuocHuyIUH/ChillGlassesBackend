@@ -138,6 +138,10 @@ public class AuthServiceImpl implements AuthService {
                 throw new UnauthorizedException("Invalid refresh token");
             }
 
+            if (!jwtUtil.isRefreshToken(refreshToken)) {
+                throw new UnauthorizedException("Invalid token type for refresh");
+            }
+
             // Extract username from token
             String email = jwtUtil.extractUsername(refreshToken);
 

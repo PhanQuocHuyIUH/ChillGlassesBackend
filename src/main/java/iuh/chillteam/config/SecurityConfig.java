@@ -2,6 +2,7 @@ package iuh.chillteam.config;
 
 import iuh.chillteam.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -24,7 +25,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Security Configuration
@@ -55,6 +56,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
+
+    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
+    private String allowedOrigins;
 
     /**
      * Password Encoder - BCrypt
@@ -122,6 +126,8 @@ public class SecurityConfig {
 
                         // Payment callback (public - từ payment gateway)
                         .requestMatchers(HttpMethod.POST, "/api/payments/callback").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/payments/callback/vnpay").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/payments/ipn/vnpay").permitAll()
 
                         // Chat AI endpoint (public - supports both guest and authenticated users)
                         .requestMatchers(HttpMethod.POST, "/api/chat-ai/chat").permitAll()
@@ -214,11 +220,10 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // Allowed origins (Frontend URLs)
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",      // Next.js dev
-                "http://localhost:5173",      // Vite dev
-                "https://yourdomain.com"      // Production
-        ));
+        configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .collect(Collectors.toList()));
 
         // Allowed methods
         configuration.setAllowedMethods(Arrays.asList(
