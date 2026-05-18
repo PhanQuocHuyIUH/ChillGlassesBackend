@@ -94,6 +94,14 @@ public class JwtUtil {
         return extractClaim(token, Claims::getExpiration);
     }
 
+    public String extractTokenType(String token) {
+        return extractClaim(token, claims -> claims.get("type", String.class));
+    }
+
+    public boolean isRefreshToken(String token) {
+        return "refresh".equals(extractTokenType(token));
+    }
+
     /**
      * Extract specific claim from token
      */

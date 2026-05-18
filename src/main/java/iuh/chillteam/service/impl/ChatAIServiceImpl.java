@@ -79,7 +79,6 @@ public class ChatAIServiceImpl implements ChatAIService {
         - Nếu hỏi hoàn toàn không liên quan: "Tôi chỉ có thể tư vấn về kính mắt. Bạn có câu hỏi gì về sản phẩm kính không?"
         
         💡 LƯU Ý:
-        - Frontend sẽ chuyển [PRODUCT_ID:123] thành link click được
         - Luôn thân thiện, chuyên nghiệp, cụ thể
         - Tập trung vào lợi ích thực tế cho khách hàng
         """;
